@@ -3,6 +3,7 @@ import { UserRepository } from './user.repository';
 import { PostRepository } from './post.repository';
 import { ClassRepository } from './class.repository';
 import { StudentRepository } from './student.repository';
+import { LessonCardRepository } from './lesson-card.repository';
 
 /**
  * Repository Factory
@@ -13,6 +14,7 @@ export class RepositoryFactory {
   private postRepo?: PostRepository;
   private classRepo?: ClassRepository;
   private studentRepo?: StudentRepository;
+  private lessonCardRepo?: LessonCardRepository;
 
   constructor(private prisma: PrismaClient) {}
 
@@ -55,6 +57,16 @@ export class RepositoryFactory {
     }
     return this.studentRepo;
   }
+
+  /**
+   * Get LessonCard Repository
+   */
+  get lessonCards(): LessonCardRepository {
+    if (!this.lessonCardRepo) {
+      this.lessonCardRepo = new LessonCardRepository(this.prisma);
+    }
+    return this.lessonCardRepo;
+  }
 }
 
 /**
@@ -69,3 +81,4 @@ export { UserRepository } from './user.repository';
 export { PostRepository } from './post.repository';
 export { ClassRepository } from './class.repository';
 export { StudentRepository } from './student.repository';
+export { LessonCardRepository } from './lesson-card.repository';
