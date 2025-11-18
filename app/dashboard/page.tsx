@@ -66,6 +66,9 @@ export default async function DashboardPage() {
                 <Link href="/profile">Edit Profile</Link>
               </Button>
               <Button variant="outline" className="w-full justify-start" asChild>
+                <Link href="/classes">Manage Classes</Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
                 <Link href="/">Back to Home</Link>
               </Button>
             </CardContent>

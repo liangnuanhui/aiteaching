@@ -12,17 +12,18 @@ generator client {
 }
 
 model User {
-  id            Int       @id @default(autoincrement())
-  email         String    @unique
+  id            Int        @id @default(autoincrement())
+  email         String     @unique
   name          String?
-  password      String?   // Encrypted password (optional, for credentials login)
-  emailVerified Int?      @map("email_verified") // Email verification timestamp
-  image         String?   // User avatar URL
-  createdAt     Int       @default(dbgenerated("(strftime('%s', 'now'))")) @map("created_at")
-  updatedAt     Int       @default(dbgenerated("(strftime('%s', 'now'))")) @map("updated_at")
+  password      String?    // Encrypted password (optional, for credentials login)
+  emailVerified Int?       @map("email_verified") // Email verification timestamp
+  image         String?    // User avatar URL
+  createdAt     Int        @default(dbgenerated("(strftime('%s', 'now'))")) @map("created_at")
+  updatedAt     Int        @default(dbgenerated("(strftime('%s', 'now'))")) @map("updated_at")
   posts         Post[]
-  accounts      Account[] // OAuth account associations
-  sessions      Session[] // Session management
+  accounts      Account[]  // OAuth account associations
+  sessions      Session[]  // Session management
+  classes       Class[]    // Teaching classes owned by this user
 
   @@index([email])
   @@index([createdAt])
@@ -88,4 +89,136 @@ model Post {
   @@index([published])
   @@index([createdAt])
   @@map("posts")
+}
+
+/// Teaching class
+model Class {
+  id          Int          @id @default(autoincrement())
+  name        String
+  gradeLevel  String       @map("grade_level")
+  teacherId   Int          @map("teacher_id")
+  createdAt   Int          @default(dbgenerated("(strftime('%s', 'now'))")) @map("created_at")
+
+  teacher     User         @relation(fields: [teacherId], references: [id])
+  students    Student[]
+  lessons     LessonCard[]
+
+  @@index([teacherId])
+  @@index([gradeLevel])
+  @@map("classes")
+}
+
+/// Student in a class
+model Student {
+  id               Int       @id @default(autoincrement())
+  name             String
+  classId          Int       @map("class_id")
+  nickname         String?
+  createdAt        Int       @default(dbgenerated("(strftime('%s', 'now'))")) @map("created_at")
+
+  class            Class     @relation(fields: [classId], references: [id])
+  uploads          Upload[]  @relation("UploadStudent")
+  suggestedUploads Upload[]  @relation("SuggestedStudent")
+
+  @@index([classId])
+  @@index([name])
+  @@map("students")
+}
+
+/// Lesson card (teaching plan instance)
+model LessonCard {
+  id                Int          @id @default(autoincrement())
+  title             String
+  classId           Int          @map("class_id")
+
+  // AI generated lesson content
+  h5Json            String       @default("{}") @map("h5_json")
+  mdPlan            String       @default("") @map("md_plan")
+
+  // Batch publishing support
+  lessonGroupId     String?      @map("lesson_group_id")
+
+  // Content version management
+  contentId         String?      @map("content_id")
+  isContentShared   Boolean      @default(true) @map("is_content_shared")
+  originalContentId String?      @map("original_content_id")
+
+  // Status management
+  status            String       @default("draft")
+
+  // Timestamps (store as unix seconds)
+  createdAt         Int          @default(dbgenerated("(strftime('%s', 'now'))")) @map("created_at")
+  updatedAt         Int          @default(dbgenerated("(strftime('%s', 'now'))")) @map("updated_at")
+  deletedAt         Int?         @map("deleted_at")
+
+  class             Class        @relation(fields: [classId], references: [id])
+  uploads           Upload[]
+
+  @@index([classId])
+  @@index([lessonGroupId])
+  @@index([status])
+  @@map("lesson_cards")
+}
+
+/// Lesson content version (shared between lesson cards)
+model LessonContent {
+  id         String  @id
+  title      String
+  h5Json     String  @default("{}") @map("h5_json")
+  mdPlan     String  @default("") @map("md_plan")
+  version    Int     @default(1)
+  createdAt  String  @default("") @map("created_at")
+  updatedAt  String  @default("") @map("updated_at")
+
+  @@map("lesson_contents")
+}
+
+/// Student work upload record
+model Upload {
+  id                 Int        @id @default(autoincrement())
+  lessonId           Int        @map("lesson_id")
+
+  // File info
+  filePath           String     @map("file_path")
+  fileHash           String     @map("file_hash")
+  fileSize           Int        @map("file_size")
+  originalFilename   String     @map("original_filename")
+
+  // OCR result
+  ocrText            String?    @map("ocr_text")
+  recognizedName     String?    @map("recognized_name")
+  ocrConfidence      Float?     @map("ocr_confidence")
+
+  // Extracted content
+  workType           String?    @map("work_type")
+  workDescription    String?    @map("work_description")
+  workKeywords       String?    @map("work_keywords")
+  workEmotions       String?    @map("work_emotions")
+  contentExtractedAt Int?       @map("content_extracted_at")
+
+  // Triage state
+  triageStatus       String     @default("pending") @map("triage_status")
+
+  // Archiving result
+  studentId          Int?       @map("student_id")
+  suggestedStudentId Int?       @map("suggested_student_id")
+
+  // Error handling
+  retryCount         Int        @default(0) @map("retry_count")
+  lastError          String?    @map("last_error")
+
+  // Timestamps
+  uploadedAt         Int        @default(dbgenerated("(strftime('%s', 'now'))")) @map("uploaded_at")
+  processedAt        Int?       @map("processed_at")
+  archivedAt         Int?       @map("archived_at")
+
+  lesson             LessonCard @relation(fields: [lessonId], references: [id])
+  student            Student?   @relation("UploadStudent", fields: [studentId], references: [id])
+  suggestedStudent   Student?   @relation("SuggestedStudent", fields: [suggestedStudentId], references: [id])
+
+  @@index([lessonId])
+  @@index([studentId])
+  @@index([fileHash])
+  @@index([triageStatus])
+  @@map("uploads")
 }
