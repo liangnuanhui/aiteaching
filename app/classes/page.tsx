@@ -54,7 +54,12 @@ export default async function ClassesPage() {
                 <ul className="space-y-3">
                   {classes.map(cls => (
                     <li key={cls.id} className="flex flex-col rounded-md border border-border p-3">
-                      <span className="font-medium">{cls.name}</span>
+                      <Link
+                        href={`/classes/${cls.id}`}
+                        className="font-medium hover:underline underline-offset-2"
+                      >
+                        {cls.name}
+                      </Link>
                       <span className="text-xs text-muted-foreground mt-1">
                         Grade level: {cls.gradeLevel}
                       </span>
