@@ -4,7 +4,7 @@ import { withCache, createCacheClient } from '@/lib/cache/client';
 import { ValidationError, ResourceAlreadyExistsError } from '@/lib/errors';
 import { analytics, AnalyticsEventType } from '@/lib/analytics';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 // GET /api/users - Get all users
 export async function GET(request: NextRequest) {

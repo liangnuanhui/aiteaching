@@ -12,27 +12,27 @@ export default async function Home() {
     <div className="min-h-screen flex flex-col p-8">
       {/* Top Navigation Bar */}
       <nav className="flex justify-between items-center max-w-6xl mx-auto w-full mb-12">
-        <h1 className="text-xl font-bold">Edge Next Starter</h1>
+        <h1 className="text-xl font-bold">心灵微光 · AI 助教工作台</h1>
         <div className="flex items-center gap-4">
           {session?.user ? (
             <>
               <span className="text-sm text-muted-foreground">{session.user.email}</span>
               <Button variant="outline" size="sm" asChild>
-                <Link href="/dashboard">Dashboard</Link>
+                <Link href="/dashboard">进入控制台</Link>
               </Button>
               <form action={handleSignOut}>
                 <Button type="submit" variant="ghost" size="sm">
-                  Sign Out
+                  退出登录
                 </Button>
               </form>
             </>
           ) : (
             <>
               <Button variant="ghost" size="sm" asChild>
-                <Link href="/login">Login</Link>
+                <Link href="/login">登录</Link>
               </Button>
               <Button size="sm" asChild>
-                <Link href="/register">Sign Up</Link>
+                <Link href="/register">注册</Link>
               </Button>
             </>
           )}
@@ -42,33 +42,37 @@ export default async function Home() {
       {/* Main Content */}
       <main className="max-w-4xl w-full mx-auto space-y-8 flex-1 flex flex-col justify-center">
         <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold">Welcome to Next.js on Cloudflare</h1>
+          <h1 className="text-4xl font-bold">帮助乡村教师，轻松用好 AI</h1>
           <p className="text-xl text-gray-600 dark:text-gray-400">
-            A production-ready template with Edge Runtime, Workers, D1, and R2
+            一站式「班级管理 + 作品上传 + AI 教案与分析」工作台，面向乡村中小学一线老师。
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
           <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-2">Edge Runtime</h2>
+            <h2 className="text-xl font-semibold mb-2">班级与学生管理</h2>
+            <p className="text-gray-600 dark:text-gray-400">为每个班级、每位学生建立清晰档案。</p>
+          </div>
+
+          <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-6">
+            <h2 className="text-xl font-semibold mb-2">作品上传与归档</h2>
             <p className="text-gray-600 dark:text-gray-400">
-              Lightning-fast responses from Cloudflare&apos;s global network
+              手机扫码拍照上传，自动识别学生并归档作品。
             </p>
           </div>
 
           <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-2">D1 Database</h2>
-            <p className="text-gray-600 dark:text-gray-400">Serverless SQL database at the edge</p>
+            <h2 className="text-xl font-semibold mb-2">AI 教案与内容生成</h2>
+            <p className="text-gray-600 dark:text-gray-400">
+              根据年级与主题，一键生成可直接使用的课堂教案。
+            </p>
           </div>
 
           <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-2">R2 Storage</h2>
-            <p className="text-gray-600 dark:text-gray-400">Object storage without egress fees</p>
-          </div>
-
-          <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-2">Auto Deployment</h2>
-            <p className="text-gray-600 dark:text-gray-400">CI/CD pipeline with GitHub Actions</p>
+            <h2 className="text-xl font-semibold mb-2">安全稳定的云端存储</h2>
+            <p className="text-gray-600 dark:text-gray-400">
+              所有数据云端保存，换电脑也能随时继续使用。
+            </p>
           </div>
         </div>
 
@@ -77,13 +81,13 @@ export default async function Home() {
             href="/api/health"
             className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
-            Check API Health
+            检查系统健康状态
           </a>
           <a
             href="/upload"
             className="inline-block px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
           >
-            Try File Upload (R2)
+            试一试上传文件
           </a>
         </div>
       </main>
@@ -93,15 +97,15 @@ export default async function Home() {
         <div className="max-w-4xl mx-auto text-center">
           <div className="flex justify-center items-center gap-4 text-sm text-muted-foreground">
             <Link href="/privacy" className="hover:text-primary hover:underline transition">
-              Privacy Policy
+              隐私政策
             </Link>
             <span>•</span>
             <Link href="/terms" className="hover:text-primary hover:underline transition">
-              Terms of Service
+              使用条款
             </Link>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Edge Next Starter. All rights reserved.
+            © {new Date().getFullYear()} 心灵微光 AI 助教工作台
           </p>
         </div>
       </footer>

@@ -51,7 +51,7 @@ export default function LoginPage() {
         router.push(callbackUrl);
       }
     } catch (err) {
-      setError('Login failed, please try again later');
+      setError('登录失败，请稍后重试');
       console.error('Login error:', err);
     } finally {
       setIsLoading(false);
@@ -64,7 +64,7 @@ export default function LoginPage() {
     try {
       await signIn(provider, { callbackUrl });
     } catch (err) {
-      setError('Google login failed');
+      setError('使用 Google 登录失败');
       console.error('OAuth login error:', err);
       setOauthLoading(null);
     }
@@ -74,8 +74,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Login</CardTitle>
-          <CardDescription>Enter your email and password to login to your account</CardDescription>
+          <CardTitle className="text-2xl font-bold">登录</CardTitle>
+          <CardDescription>请输入邮箱和密码登录系统</CardDescription>
         </CardHeader>
         <form onSubmit={onSubmit}>
           <CardContent className="space-y-4">
@@ -85,7 +85,7 @@ export default function LoginPage() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">邮箱</Label>
               <Input
                 id="email"
                 name="email"
@@ -96,13 +96,13 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">密码</Label>
               <Input id="password" name="password" type="password" required disabled={isLoading} />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Logging in...' : 'Login'}
+              {isLoading ? '正在登录…' : '登录'}
             </Button>
 
             {/* Divider */}
@@ -111,7 +111,9 @@ export default function LoginPage() {
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                <span className="bg-background px-2 text-muted-foreground">
+                  或使用第三方账号登录
+                </span>
               </div>
             </div>
 
@@ -124,7 +126,7 @@ export default function LoginPage() {
               disabled={isLoading || oauthLoading !== null}
             >
               {oauthLoading === 'google' ? (
-                'Loading...'
+                '正在连接…'
               ) : (
                 <>
                   <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
@@ -145,15 +147,15 @@ export default function LoginPage() {
                       fill="#EA4335"
                     />
                   </svg>
-                  Sign in with Google
+                  使用 Google 登录
                 </>
               )}
             </Button>
 
             <div className="text-sm text-muted-foreground text-center">
-              Don&apos;t have an account?{' '}
+              还没有账号？{' '}
               <Link href="/register" className="text-primary hover:underline">
-                Sign up now
+                立即注册
               </Link>
             </div>
           </CardFooter>

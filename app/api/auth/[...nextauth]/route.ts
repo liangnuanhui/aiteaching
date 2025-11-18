@@ -5,7 +5,7 @@
 
 import { handlers } from '@/lib/auth/config';
 
-// Use Edge runtime (compatible with Web Crypto API)
-export const runtime = 'edge';
+// Use Node.js runtime in local development to support Prisma Client
+export const runtime = 'nodejs';
 
 export const { GET, POST } = handlers;

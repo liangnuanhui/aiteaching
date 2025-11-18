@@ -56,6 +56,9 @@ const envSchema = z
       .default('true')
       .transform(val => val === 'true'),
     SLOW_QUERY_THRESHOLD_MS: z.coerce.number().min(100).max(10000).default(1000),
+
+    // ModelScope / 魔搭社区 API
+    MODELSCOPE_API_KEY: z.string().optional(),
   })
   .superRefine((value, ctx) => {
     if (

@@ -78,9 +78,9 @@ export default function UploadPage() {
       <Card className="w-full max-w-xl">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Upload a File to R2</CardTitle>
+            <CardTitle>上传文件到云端存储</CardTitle>
             <Button variant="outline" size="sm" asChild>
-              <Link href="/">Back Home</Link>
+              <Link href="/">返回首页</Link>
             </Button>
           </div>
         </CardHeader>
@@ -96,7 +96,7 @@ export default function UploadPage() {
           </div>
 
           <Button onClick={handleUpload} disabled={isUploading || !files || files.length === 0}>
-            {isUploading ? 'Uploading...' : 'Upload'}
+            {isUploading ? '正在上传…' : '上传文件'}
           </Button>
 
           {error && (
@@ -109,7 +109,7 @@ export default function UploadPage() {
                   size="sm"
                   className="w-full"
                 >
-                  Go to Login
+                  前往登录
                 </Button>
               )}
             </div>
@@ -117,14 +117,14 @@ export default function UploadPage() {
 
           {result && (
             <div className="space-y-3">
-              <div className="text-sm text-muted-foreground">Uploaded:</div>
+              <div className="text-sm text-muted-foreground">已上传文件：</div>
               <pre className="rounded-md bg-muted p-3 text-sm overflow-auto">
                 {JSON.stringify(result, null, 2)}
               </pre>
               {/* Preview for common media types */}
               {typeof result?.url === 'string' && result?.key && (
                 <div className="space-y-2">
-                  <div className="text-sm">Preview</div>
+                  <div className="text-sm">预览</div>
                   {result.contentType?.startsWith('image/') ? (
                     <Image
                       src={result.url}
@@ -150,7 +150,7 @@ export default function UploadPage() {
                       rel="noreferrer"
                       className="text-primary underline"
                     >
-                      Open file
+                      打开文件
                     </a>
                   )}
                 </div>
@@ -160,7 +160,7 @@ export default function UploadPage() {
 
           {results && results.length > 0 && (
             <div className="space-y-3">
-              <div className="text-sm text-muted-foreground">Uploaded Files:</div>
+              <div className="text-sm text-muted-foreground">已上传的文件：</div>
               <div className="space-y-4">
                 {results.map(item => (
                   <div key={item.key} className="space-y-2">
@@ -190,7 +190,7 @@ export default function UploadPage() {
                         rel="noreferrer"
                         className="text-primary underline"
                       >
-                        Open file
+                        打开文件
                       </a>
                     ) : null}
                   </div>

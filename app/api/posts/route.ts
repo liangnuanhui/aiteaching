@@ -4,7 +4,7 @@ import { ValidationError, ResourceNotFoundError } from '@/lib/errors';
 import { analytics, AnalyticsEventType } from '@/lib/analytics';
 import type { PaginationParams, PaginationMeta } from '@/types';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 // GET /api/posts - Get all posts (supports pagination and filters)
 export async function GET(request: NextRequest) {

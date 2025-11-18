@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { createClass } from '@/app/actions/classes';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export default async function ClassesPage() {
   const session = await auth();
@@ -29,13 +29,13 @@ export default async function ClassesPage() {
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Teaching Classes</h1>
+            <h1 className="text-3xl font-bold">班级管理</h1>
             <p className="text-muted-foreground mt-2">
-              Manage your classes and prepare for AI-assisted teaching workflows.
+              为自己带的班级建立档案，是 AI 教案与作品管理的起点。
             </p>
           </div>
           <Button variant="outline" asChild>
-            <Link href="/dashboard">Back to Dashboard</Link>
+            <Link href="/dashboard">返回控制台</Link>
           </Button>
         </div>
 
@@ -48,7 +48,7 @@ export default async function ClassesPage() {
             <CardContent className="space-y-3">
               {classes.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  You don&apos;t have any classes yet. Use the form on the right to create one.
+                  你还没有创建任何班级，请在右侧表单中新建一个班级。
                 </p>
               ) : (
                 <ul className="space-y-3">
@@ -61,7 +61,7 @@ export default async function ClassesPage() {
                         {cls.name}
                       </Link>
                       <span className="text-xs text-muted-foreground mt-1">
-                        Grade level: {cls.gradeLevel}
+                        年级：{cls.gradeLevel}
                       </span>
                     </li>
                   ))}
@@ -72,23 +72,40 @@ export default async function ClassesPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Create New Class</CardTitle>
-              <CardDescription>
-                Define a class as the basic unit for students, lessons, and uploads.
-              </CardDescription>
+              <CardTitle>新建班级</CardTitle>
+              <CardDescription>为你当前带的班级建立一条记录。</CardDescription>
             </CardHeader>
             <CardContent>
               <form action={createClass} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Class name</Label>
-                  <Input id="name" name="name" placeholder="e.g. 二年级1班" required />
+                  <Label htmlFor="name">班级名称</Label>
+                  <Input id="name" name="name" placeholder="例如：二年级 1 班" required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="gradeLevel">Grade level</Label>
-                  <Input id="gradeLevel" name="gradeLevel" placeholder="e.g. 小学二年级" required />
+                  <Label htmlFor="gradeLevel">学段与年级</Label>
+                  <select
+                    id="gradeLevel"
+                    name="gradeLevel"
+                    defaultValue=""
+                    required
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  >
+                    <option value="" disabled>
+                      请选择学段与年级
+                    </option>
+                    <option value="小学一年级">小学一年级</option>
+                    <option value="小学二年级">小学二年级</option>
+                    <option value="小学三年级">小学三年级</option>
+                    <option value="小学四年级">小学四年级</option>
+                    <option value="小学五年级">小学五年级</option>
+                    <option value="小学六年级">小学六年级</option>
+                    <option value="初中一年级">初中一年级</option>
+                    <option value="初中二年级">初中二年级</option>
+                    <option value="初中三年级">初中三年级</option>
+                  </select>
                 </div>
                 <Button type="submit" className="w-full">
-                  Create Class
+                  创建班级
                 </Button>
               </form>
             </CardContent>

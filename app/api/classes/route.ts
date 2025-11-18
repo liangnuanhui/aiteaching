@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { createdResponse, successResponse, withRepositories } from '@/lib/api';
 import { ValidationError, ResourceNotFoundError } from '@/lib/errors';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 // GET /api/classes - list classes (optionally by teacherId)
 export async function GET(request: NextRequest) {

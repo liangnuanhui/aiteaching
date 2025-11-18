@@ -11,8 +11,8 @@ import { createCacheClient } from '@/lib/cache/client';
 import { ResourceAlreadyExistsError, ValidationError } from '@/lib/errors';
 import { analytics, AnalyticsEventType } from '@/lib/analytics';
 
-// Use Edge runtime (compatible with Web Crypto API)
-export const runtime = 'edge';
+// Use Node.js runtime in local dev to support Prisma Client
+export const runtime = 'nodejs';
 
 // Registration request validation schema
 const registerSchema = z.object({
