@@ -17,7 +17,7 @@ export class StudentRepository {
       const start = Date.now();
       const students = await this.prisma.student.findMany({
         where: { classId },
-        orderBy: { name: 'asc' },
+        orderBy: { createdAt: 'asc' },
       });
       await analytics.trackDatabaseQuery('student.findByClassId', 'students', Date.now() - start, {
         classId,
@@ -47,6 +47,45 @@ export class StudentRepository {
       return student;
     } catch (error) {
       throw new DatabaseError('Failed to create student', error);
+    }
+  }
+
+  /**
+   * Delete a student by id and class
+   */
+  async delete(id: number, classId: number) {
+    try {
+      const start = Date.now();
+      const result = await this.prisma.student.deleteMany({
+        where: { id, classId },
+      });
+      await analytics.trackDatabaseQuery('student.delete', 'students', Date.now() - start, {
+        id,
+        classId,
+      });
+      return result.count;
+    } catch (error) {
+      throw new DatabaseError('Failed to delete student', error);
+    }
+  }
+
+  /**
+   * Update student nickname
+   */
+  async updateNickname(id: number, classId: number, nickname: string | null) {
+    try {
+      const start = Date.now();
+      const student = await this.prisma.student.updateMany({
+        where: { id, classId },
+        data: { nickname },
+      });
+      await analytics.trackDatabaseQuery('student.updateNickname', 'students', Date.now() - start, {
+        id,
+        classId,
+      });
+      return student.count;
+    } catch (error) {
+      throw new DatabaseError('Failed to update student nickname', error);
     }
   }
 }
