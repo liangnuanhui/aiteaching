@@ -59,6 +59,7 @@ const envSchema = z
 
     // ModelScope / 魔搭社区 API
     MODELSCOPE_API_KEY: z.string().optional(),
+    MODELSCOPE_MODEL_ID: z.string().optional(),
   })
   .superRefine((value, ctx) => {
     if (

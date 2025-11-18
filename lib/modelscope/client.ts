@@ -10,7 +10,6 @@
  * - Put your key in MODELSCOPE_API_KEY in .env.local.
  */
 
-import type { NextRequest } from 'next/server';
 import { getEnv } from '@/lib/config/env';
 
 const MODELSCOPE_BASE_URL = 'https://api-inference.modelscope.cn/v1';
@@ -46,6 +45,7 @@ export async function callModelScopeChat(
   options: ChatCompletionOptions = {}
 ): Promise<ChatCompletionResponse> {
   const apiKey = getEnv('MODELSCOPE_API_KEY');
+  const timeoutMs = 60000;
 
   if (!apiKey) {
     throw new Error(
@@ -53,9 +53,12 @@ export async function callModelScopeChat(
     );
   }
 
-  const model = options.model ?? 'ms-bf630ca3-8bfe-4ffe-a3b0-caa14606ea97';
+  const envModelId = getEnv('MODELSCOPE_MODEL_ID');
+  const model = options.model ?? envModelId ?? 'Qwen/Qwen3-Next-80B-A3B-Thinking';
 
-  const response = await fetch(`${MODELSCOPE_BASE_URL}/chat/completions`, {
+  const controller = new AbortController();
+
+  const fetchPromise = fetch(`${MODELSCOPE_BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -65,9 +68,25 @@ export async function callModelScopeChat(
       model,
       messages,
       temperature: options.temperature ?? 0.7,
-      max_tokens: options.maxTokens ?? 1024,
+      max_tokens: options.maxTokens ?? 5000,
     }),
+    signal: controller.signal,
   });
+
+  let timer: NodeJS.Timeout | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error(`ModelScope request timed out after ${timeoutMs / 1000} seconds`));
+    }, timeoutMs);
+  });
+
+  const response = (await Promise.race([fetchPromise, timeoutPromise])) as Response;
+
+  if (timer) {
+    clearTimeout(timer);
+  }
 
   if (!response.ok) {
     const text = await response.text();

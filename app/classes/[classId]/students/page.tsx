@@ -11,9 +11,9 @@ import { StudentNicknameEditor } from '@/components/student-nickname-editor';
 export const runtime = 'nodejs';
 
 interface ClassStudentsPageProps {
-  params: {
+  params: Promise<{
     classId: string;
-  };
+  }>;
 }
 
 export default async function ClassStudentsPage({ params }: ClassStudentsPageProps) {
@@ -23,8 +23,9 @@ export default async function ClassStudentsPage({ params }: ClassStudentsPagePro
     redirect('/login?callbackUrl=/classes');
   }
 
+  const { classId: classIdParam } = await params;
   const userId = Number(session.user.id);
-  const classId = Number(params.classId);
+  const classId = Number(classIdParam);
 
   if (!classId || !Number.isFinite(classId)) {
     redirect('/classes');

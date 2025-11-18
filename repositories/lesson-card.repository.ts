@@ -34,13 +34,15 @@ export class LessonCardRepository {
   /**
    * Create a new lesson card
    */
-  async create(data: { title: string; classId: number }) {
+  async create(data: { title: string; classId: number; h5Json?: string; mdPlan?: string }) {
     try {
       const start = Date.now();
       const lesson = await this.prisma.lessonCard.create({
         data: {
           title: data.title,
           classId: data.classId,
+          ...(data.h5Json !== undefined && { h5Json: data.h5Json }),
+          ...(data.mdPlan !== undefined && { mdPlan: data.mdPlan }),
         },
       });
       await analytics.trackDatabaseQuery('lessonCard.create', 'lesson_cards', Date.now() - start, {

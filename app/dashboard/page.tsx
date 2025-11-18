@@ -1,14 +1,14 @@
-/**
- * Protected Example Page - Dashboard
- * Only accessible to logged-in users
- */
-
 import { auth } from '@/lib/auth/config';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { handleSignOut } from '@/app/actions/auth';
+import { prisma } from '@/lib/db/client';
+import { CreateLessonDialog } from '@/components/create-lesson-dialog';
+import { DeleteLessonButton } from '@/components/delete-lesson-button';
+
+export const runtime = 'nodejs';
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -17,73 +17,113 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
+  const teacherId = Number(session.user.id);
+
+  const [classes, lessons] = await Promise.all([
+    prisma.class.findMany({
+      where: { teacherId },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.lessonCard.findMany({
+      where: {
+        class: {
+          teacherId,
+        },
+      },
+      include: {
+        class: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
+
   return (
     <div className="min-h-screen bg-background p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">控制台</h1>
             <p className="text-muted-foreground mt-2">
               欢迎回来，{session.user.name || session.user.email}！
             </p>
+            <CreateLessonDialog classes={classes} />
           </div>
-          <form action={handleSignOut}>
-            <Button type="submit" variant="outline">
-              退出登录
-            </Button>
-          </form>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>账号信息</CardTitle>
-              <CardDescription>当前登录账号</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div>
-                <span className="text-sm font-medium">邮箱：</span>
-                <p className="text-muted-foreground">{session.user.email}</p>
-              </div>
-              <div>
-                <span className="text-sm font-medium">姓名：</span>
-                <p className="text-muted-foreground">{session.user.name || '未设置'}</p>
-              </div>
-              <div>
-                <span className="text-sm font-medium">用户 ID：</span>
-                <p className="text-muted-foreground">{session.user.id}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>快捷入口</CardTitle>
-              <CardDescription>常用功能</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link href="/profile">编辑个人信息</Link>
+          <div className="flex items-center gap-3">
+            <div className="hidden text-xs text-muted-foreground md:block">
+              班级：
+              <span className="font-medium text-foreground">{classes.length}</span> 个 · 课程卡片：
+              <span className="font-medium text-foreground">{lessons.length}</span> 张
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/classes">班级管理</Link>
               </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link href="/classes">管理班级与学生</Link>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/profile">账号信息</Link>
               </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link href="/">返回首页</Link>
-              </Button>
-            </CardContent>
-          </Card>
+              <form action={handleSignOut}>
+                <Button type="submit" variant="outline" size="sm">
+                  退出登录
+                </Button>
+              </form>
+            </div>
+          </div>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>会话信息（调试用）</CardTitle>
-            <CardDescription>当前登录会话的详细数据，仅供技术调试</CardDescription>
+            <CardTitle>我的课程</CardTitle>
+            <CardDescription>查看和管理当前账号下所有课程卡片。</CardDescription>
           </CardHeader>
           <CardContent>
-            <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-sm">
-              {JSON.stringify(session, null, 2)}
-            </pre>
+            {lessons.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                目前还没有任何课程卡片，可以通过上方的「快速新建课程」创建第一节课。
+              </p>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2">
+                {lessons.map(lesson => (
+                  <Card key={lesson.id} className="flex flex-col">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-base font-semibold">
+                          <Link
+                            href={`/lessons/${lesson.id}`}
+                            className="hover:underline underline-offset-2"
+                          >
+                            {lesson.title}
+                          </Link>
+                        </CardTitle>
+                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
+                          {lesson.status === 'draft' ? '备课中' : lesson.status}
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-1 text-xs text-muted-foreground">
+                      <div>
+                        班级：{lesson.class?.name}（{lesson.class?.gradeLevel}）
+                      </div>
+                      <div>
+                        创建时间：
+                        {new Date(lesson.createdAt * 1000).toLocaleString('zh-CN', {
+                          hour12: false,
+                        })}
+                      </div>
+                      <div>
+                        <Link
+                          href={`/lessons/${lesson.id}`}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          查看/编辑教案
+                        </Link>
+                        <span className="mx-1 text-muted-foreground">·</span>
+                        <DeleteLessonButton lessonId={lesson.id} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

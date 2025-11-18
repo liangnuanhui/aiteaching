@@ -5,13 +5,14 @@ import { prisma } from '@/lib/db/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { createLesson } from '@/app/actions/lessons';
+import { CreateLessonSubmitButton } from '@/components/create-lesson-submit-button';
 
 export const runtime = 'nodejs';
 
 interface ClassPageProps {
-  params: {
+  params: Promise<{
     classId: string;
-  };
+  }>;
 }
 
 export default async function ClassDetailPage({ params }: ClassPageProps) {
@@ -21,8 +22,9 @@ export default async function ClassDetailPage({ params }: ClassPageProps) {
     redirect('/login?callbackUrl=/classes');
   }
 
+  const { classId: classIdParam } = await params;
   const userId = Number(session.user.id);
-  const classId = Number(params.classId);
+  const classId = Number(classIdParam);
 
   if (!classId || !Number.isFinite(classId)) {
     redirect('/classes');
@@ -110,7 +112,14 @@ export default async function ClassDetailPage({ params }: ClassPageProps) {
                     key={lesson.id}
                     className="flex flex-col rounded-md border border-border p-3 text-sm"
                   >
-                    <span className="font-medium">{lesson.title}</span>
+                    <span className="font-medium">
+                      <Link
+                        href={`/lessons/${lesson.id}`}
+                        className="hover:underline underline-offset-2"
+                      >
+                        {lesson.title}
+                      </Link>
+                    </span>
                     <span className="mt-1 text-xs text-muted-foreground">
                       状态：{lesson.status === 'draft' ? '备课中' : lesson.status}
                     </span>
@@ -134,9 +143,7 @@ export default async function ClassDetailPage({ params }: ClassPageProps) {
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
-              <Button type="submit" className="w-full md:w-auto">
-                新建课程卡片
-              </Button>
+              <CreateLessonSubmitButton />
             </form>
           </CardContent>
         </Card>
