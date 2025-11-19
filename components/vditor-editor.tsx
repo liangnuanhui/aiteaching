@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import Vditor from 'vditor';
 import 'vditor/dist/index.css';
 import { Button } from '@/components/ui/button';
-import { updateLessonPlan } from '@/app/actions/lessons';
+import { autosaveLessonPlan } from '@/app/actions/lessons';
 
 interface VditorEditorProps {
   lessonId: number;
@@ -23,6 +23,8 @@ export function VditorEditor({ lessonId, value = '', height = '600px' }: VditorE
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [currentValue, setCurrentValue] = useState<string>(value || '');
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -83,8 +85,24 @@ export function VditorEditor({ lessonId, value = '', height = '600px' }: VditorE
     };
   }, [height, lessonId, value]);
 
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setIsSaving(true);
+    setError(null);
+    try {
+      await autosaveLessonPlan({
+        lessonId,
+        mdPlan: currentValue,
+      });
+    } catch {
+      setError('保存失败，请稍后重试');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
-    <form action={updateLessonPlan} className="space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-3">
       <input type="hidden" name="lessonId" value={lessonId} />
       <input type="hidden" name="mdPlan" value={currentValue} />
 
@@ -99,10 +117,20 @@ export function VditorEditor({ lessonId, value = '', height = '600px' }: VditorE
 
       <div ref={editorRef} />
 
-      <div className="flex justify-end">
-        <Button type="submit" size="sm">
-          保存教案
-        </Button>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-muted-foreground">
+          {isSaving ? '正在保存教案…' : error ? error : '编辑完成后请点击“保存教案”。'}
+        </div>
+        <div className="flex gap-2">
+          <Button type="submit" size="sm" disabled={isSaving}>
+            保存教案
+          </Button>
+          <Button type="button" size="sm" variant="outline" asChild>
+            <a href={`/lessons/${lessonId}/export`} target="_blank" rel="noreferrer">
+              导出教案
+            </a>
+          </Button>
+        </div>
       </div>
     </form>
   );

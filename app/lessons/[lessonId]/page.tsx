@@ -103,7 +103,7 @@ export default async function LessonDetailPage({ params, searchParams }: LessonP
         <LessonTabs
           initialTab={initialTab}
           edit={
-            <Card>
+            <Card id="lesson-edit">
               <CardHeader>
                 <CardTitle>教案编辑</CardTitle>
                 <CardDescription>

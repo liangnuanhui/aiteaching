@@ -312,7 +312,7 @@ export async function updateLessonPlan(formData: FormData) {
     },
   });
 
-  redirect(`/lessons/${lesson.id}`);
+  redirect(`/lessons/${lesson.id}?tab=edit#lesson-edit`);
 }
 
 /**
