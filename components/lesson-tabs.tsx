@@ -12,11 +12,12 @@ import { useState } from 'react';
 interface LessonTabsProps {
   edit: React.ReactNode;
   h5: React.ReactNode;
-  initialTab?: 'edit' | 'h5';
+  works: React.ReactNode;
+  initialTab?: 'edit' | 'h5' | 'works';
 }
 
-export function LessonTabs({ edit, h5, initialTab = 'edit' }: LessonTabsProps) {
-  const [active, setActive] = useState<'edit' | 'h5'>(initialTab);
+export function LessonTabs({ edit, h5, works, initialTab = 'edit' }: LessonTabsProps) {
+  const [active, setActive] = useState<'edit' | 'h5' | 'works'>(initialTab);
 
   return (
     <div className="mt-4">
@@ -43,11 +44,23 @@ export function LessonTabs({ edit, h5, initialTab = 'edit' }: LessonTabsProps) {
         >
           课件展示
         </button>
+        <button
+          type="button"
+          onClick={() => setActive('works')}
+          className={`mr-4 border-b-2 px-2 py-2 ${
+            active === 'works'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          学生作品
+        </button>
       </div>
 
       <div className="mt-4">
         {active === 'edit' && edit}
         {active === 'h5' && h5}
+        {active === 'works' && works}
       </div>
     </div>
   );

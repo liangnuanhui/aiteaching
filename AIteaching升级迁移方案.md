@@ -1830,6 +1830,179 @@ export default async function ArchivePage({
 }
 ```
 
+### Vditor IR编辑器集成
+
+**更新日期**: 2025-11-19
+**状态**: ✅ 已完成技术验证，待正式集成到课程编辑页
+**相关文件**:
+
+- `components/vditor-editor.tsx` - Vditor编辑器组件
+- `VDITOR_INTEGRATION_GUIDE.md` - 详细集成文档
+
+#### 背景与问题
+
+在旧项目（AIteaching）中，教案编辑器直接使用原生Markdown文本编辑，对于乡村地区教师来说，Markdown语法符号（如`##`、`**`、`-`等）造成了严重困惑。教师反映"看到这些符号不知所措"，这直接影响了产品的可用性。
+
+#### 技术选型
+
+经过对多个方案的研究和对比，最终选择 **Vditor** 作为解决方案：
+
+1. **Milkdown** - 基于ProseMirror，太重（900KB+），不符合轻量级要求
+2. **md-editor-rt** - 功能较好但维护滞后，漏洞多
+3. **Vditor** - 完美匹配需求：
+   - ✅ IR（即时渲染）模式，完全隐藏Markdown语法
+   - ✅ 轻量级（核心 < 100KB）
+   - ✅ 中文支持完善（开发者：Vditor中国团队）
+   - ✅ 活跃维护，文档齐全
+   - ✅ 支持表情、表格、代码块等丰富功能
+
+#### 实现细节
+
+**组件封装** (`components/vditor-editor.tsx`):
+
+```typescript
+'use client';
+
+import React, { useEffect, useRef, useState } from 'react';
+import Vditor from 'vditor';
+import 'vditor/dist/index.css';
+
+interface VditorEditorProps {
+  value?: string;
+  onChange?: (value: string) => void;
+  height?: string;
+  readOnly?: boolean;
+}
+
+export default function VditorEditor({
+  value = '',
+  onChange,
+  height = '600px',
+  readOnly = false,
+}: VditorEditorProps) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const [vditor, setVditor] = useState<Vditor | null>(null);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    if (!editorRef.current) return;
+
+    const editor = new Vditor(editorRef.current, {
+      cache: { id: 'vditor-editor' }, // 必需：缓存ID
+      mode: readOnly ? 'preview' : 'ir', // IR模式 = 即时渲染
+      value,
+      height,
+      lang: 'zh_CN',
+      theme: 'classic',
+      icon: 'ant',
+      toolbar: [
+        'emoji', 'headings', 'bold', 'italic', 'strike', '|',
+        'list', 'ordered-list', 'check', 'quote', 'code', 'table', 'link', '|',
+        'undo', 'redo', 'fullscreen', 'preview',
+      ],
+      toolbarConfig: { pin: true },
+      preview: { delay: 0 },
+      input: (newValue: string) => onChange?.(newValue),
+      after: () => setIsReady(true),
+    });
+
+    setVditor(editor);
+    return () => {
+      try { editor.destroy(); } catch (e) {}
+    };
+  }, []);
+
+  return (
+    <div className="vditor-container">
+      {!isReady && <LoadingSpinner />}
+      <div ref={editorRef} />
+    </div>
+  );
+}
+```
+
+**关键配置说明**:
+
+| 配置项              | 值                | 说明                                   |
+| ------------------- | ----------------- | -------------------------------------- |
+| `cache.id`          | `'vditor-editor'` | 必需，用于本地存储缓存                 |
+| `mode`              | `'ir'`            | IR模式 = Instant Rendering（即时渲染） |
+| `lang`              | `'zh_CN'`         | 中文界面                               |
+| `toolbar`           | 精简工具栏        | 只保留常用功能，降低学习成本           |
+| `toolbarConfig.pin` | `true`            | 工具栏固定在顶部                       |
+
+#### 集成方式
+
+**在课程编辑页使用**:
+
+```tsx
+// app/lessons/[lessonId]/page.tsx
+
+import VditorEditor from '@/components/vditor-editor';
+import { autosaveLessonPlan } from '@/app/actions/lessons';
+import { debounce } from 'lodash-es';
+
+// 自动保存函数（防抖2秒）
+const handleAutosave = debounce(async (newValue: string) => {
+  const formData = new FormData();
+  formData.append('lessonId', lesson.id.toString());
+  formData.append('mdPlan', newValue);
+  await autosaveLessonPlan(formData);
+}, 2000);
+
+// 在JSX中使用
+<Card>
+  <CardHeader>
+    <CardTitle>教案编辑</CardTitle>
+    <CardDescription>所见即所得编辑器，无需了解Markdown语法</CardDescription>
+  </CardHeader>
+  <CardContent className="p-0">
+    <VditorEditor value={lesson.mdPlan} onChange={handleAutosave} height="600px" />
+  </CardContent>
+</Card>;
+```
+
+#### 当前进展
+
+**已完成**:
+
+- ✅ Vditor依赖安装（`pnpm add vditor`）
+- ✅ 编辑器组件封装（`components/vditor-editor.tsx`）
+- ✅ cache.id配置修复（解决`need options.cache.id`错误）
+- ✅ 技术验证和演示页面测试
+- ✅ 编写完整集成文档
+
+**待完成**:
+
+- ⏳ 集成到实际课程编辑页面（`app/lessons/[lessonId]/page.tsx`）
+- ⏳ 测试自动保存功能
+- ⏳ 移动端适配测试
+- ⏳ 收集教师反馈
+
+#### 预期效果
+
+**对教师**:
+
+- 零学习成本，类似Word的编辑体验
+- 实时看到排版效果，不再被Markdown符号困扰
+- 支持表情符号、表格等丰富内容
+- 自动保存，防止内容丢失
+
+**对系统**:
+
+- 数据存储格式仍为Markdown，保持兼容性
+- 轻量级，加载快速（适合网络环境较差的乡村地区）
+- 易于维护和扩展
+
+#### 风险与应对
+
+| 风险                      | 可能性 | 影响 | 应对措施                           |
+| ------------------------- | ------ | ---- | ---------------------------------- |
+| Vditor与Next.js SSR不兼容 | 中     | 高   | 已使用'client'指令，确保客户端渲染 |
+| 自动保存性能问题          | 低     | 中   | 使用lodash防抖，2秒间隔            |
+| 移动端体验不佳            | 中     | 中   | Vditor内置响应式支持，需实际测试   |
+| 教师不适应新界面          | 低     | 中   | 保留旧编辑器作为fallback选项       |
+
 ---
 
 ## 部署与测试计划

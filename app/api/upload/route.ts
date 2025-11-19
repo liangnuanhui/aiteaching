@@ -5,7 +5,7 @@ import {
   withMiddleware,
   withApiHandler,
 } from '@/lib/api';
-import { uploadFile, downloadFile } from '@/lib/r2/client';
+import { uploadFile, downloadFile } from '@/lib/storage';
 import {
   FileSizeExceededError,
   FileUploadError,
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (!stored) {
-        throw new FileUploadError('R2 storage not available');
+        throw new FileUploadError('Storage not available');
       }
 
       // Generate signed download URL
@@ -90,8 +90,7 @@ export async function POST(request: NextRequest) {
       return {
         key: stored.key,
         size: stored.size,
-        etag: stored.etag,
-        uploaded: stored.uploaded,
+        uploaded: stored.uploadedAt,
         url: signedUrl,
         expiresIn: URL_EXPIRATION_SECONDS,
         contentType: file.type || 'application/octet-stream',

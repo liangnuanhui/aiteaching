@@ -9,6 +9,8 @@ import { LessonTabs } from '@/components/lesson-tabs';
 import { LessonH5Player } from '@/components/lesson-h5-player';
 import { LessonH5Editor } from '@/components/lesson-h5-editor';
 import { VditorEditor } from '@/components/vditor-editor';
+import { LessonStudentWorks } from '@/components/lesson-student-works';
+import { getLessonUploadToken } from '@/lib/lesson-upload-token';
 
 export const runtime = 'nodejs';
 
@@ -52,10 +54,11 @@ export default async function LessonDetailPage({ params, searchParams }: LessonP
     redirect('/dashboard');
   }
 
+  const uploadToken = getLessonUploadToken(lesson.id);
   const initialTabFromSearch = sp?.tab;
-  let initialTab: 'edit' | 'h5' = 'edit';
-  if (initialTabFromSearch === 'h5') {
-    initialTab = 'h5';
+  let initialTab: 'edit' | 'h5' | 'works' = 'edit';
+  if (initialTabFromSearch === 'h5' || initialTabFromSearch === 'works') {
+    initialTab = initialTabFromSearch;
   }
 
   const statusLabel =
@@ -130,6 +133,15 @@ export default async function LessonDetailPage({ params, searchParams }: LessonP
                 </div>
               </CardContent>
             </Card>
+          }
+          works={
+            <LessonStudentWorks
+              lessonId={lesson.id}
+              title={lesson.title}
+              className={lesson.class?.name}
+              gradeLevel={lesson.class?.gradeLevel}
+              uploadToken={uploadToken}
+            />
           }
         />
       </div>
