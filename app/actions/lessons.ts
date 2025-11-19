@@ -316,6 +316,60 @@ export async function updateLessonPlan(formData: FormData) {
 }
 
 /**
+ * Update lesson H5 JSON (slides / media)
+ */
+export async function updateLessonH5(formData: FormData) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect('/login');
+  }
+
+  const lessonIdValue = formData.get('lessonId');
+  const h5JsonValue = formData.get('h5Json');
+
+  const lessonId = Number(lessonIdValue ?? '');
+  const h5Json = (h5JsonValue ?? '').toString() || '{}';
+
+  if (!lessonId || !Number.isFinite(lessonId)) {
+    throw new Error('Invalid lesson id');
+  }
+
+  // Basic validation: ensure h5Json is valid JSON
+  try {
+    JSON.parse(h5Json);
+  } catch {
+    throw new Error('Invalid H5 JSON payload');
+  }
+
+  const userId = Number(session.user.id);
+  const prisma = createPrismaClient();
+
+  const lesson = await prisma.lessonCard.findFirst({
+    where: {
+      id: lessonId,
+      class: {
+        teacherId: userId,
+      },
+    },
+  });
+
+  if (!lesson) {
+    throw new Error('Lesson not found or you do not have permission to edit it');
+  }
+
+  await prisma.lessonCard.update({
+    where: { id: lesson.id },
+    data: {
+      h5Json,
+      updatedAt: Math.floor(Date.now() / 1000),
+    },
+  });
+
+  redirect(`/lessons/${lesson.id}?tab=h5`);
+}
+
+/**
  * Update lesson status (e.g. draft -> ready)
  */
 export async function updateLessonStatus(formData: FormData) {

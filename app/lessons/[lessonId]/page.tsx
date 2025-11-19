@@ -8,6 +8,7 @@ import { updateLessonStatus } from '@/app/actions/lessons';
 import { LessonTabs } from '@/components/lesson-tabs';
 import { LessonH5Player } from '@/components/lesson-h5-player';
 import { LessonPlanEditor } from '@/components/lesson-plan-editor';
+import { LessonH5Editor } from '@/components/lesson-h5-editor';
 
 export const runtime = 'nodejs';
 
@@ -15,9 +16,12 @@ interface LessonPageProps {
   params: Promise<{
     lessonId: string;
   }>;
+  searchParams?: Promise<{
+    tab?: string;
+  }>;
 }
 
-export default async function LessonDetailPage({ params }: LessonPageProps) {
+export default async function LessonDetailPage({ params, searchParams }: LessonPageProps) {
   const session = await auth();
 
   if (!session?.user) {
@@ -25,6 +29,7 @@ export default async function LessonDetailPage({ params }: LessonPageProps) {
   }
 
   const { lessonId } = await params;
+  const sp = searchParams ? await searchParams : undefined;
   const id = Number(lessonId);
 
   if (!id || !Number.isFinite(id)) {
@@ -45,6 +50,12 @@ export default async function LessonDetailPage({ params }: LessonPageProps) {
 
   if (!lesson) {
     redirect('/dashboard');
+  }
+
+  const initialTabFromSearch = sp?.tab;
+  let initialTab: 'preview' | 'edit' | 'h5' = 'preview';
+  if (initialTabFromSearch === 'edit' || initialTabFromSearch === 'h5') {
+    initialTab = initialTabFromSearch;
   }
 
   const statusLabel =
@@ -90,6 +101,7 @@ export default async function LessonDetailPage({ params }: LessonPageProps) {
         </div>
 
         <LessonTabs
+          initialTab={initialTab}
           preview={
             <Card>
               <CardHeader>
@@ -128,11 +140,14 @@ export default async function LessonDetailPage({ params }: LessonPageProps) {
               <CardHeader>
                 <CardTitle>课件展示</CardTitle>
                 <CardDescription>
-                  根据教案生成的 H5 课件预览。点击“开始课件展示”进入类似 PPT 的放映模式。
+                  点击“开始课件展示”进入类似 PPT 的放映模式，下方可以直接编辑课件幻灯片。
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <LessonH5Player h5Json={lesson.h5Json} />
+                <div className="space-y-6">
+                  <LessonH5Player h5Json={lesson.h5Json} showPreviewGrid={false} />
+                  <LessonH5Editor lessonId={lesson.id} initialH5Json={lesson.h5Json} />
+                </div>
               </CardContent>
             </Card>
           }

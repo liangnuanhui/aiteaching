@@ -16,8 +16,13 @@ interface LessonTabsProps {
   h5: React.ReactNode;
 }
 
-export function LessonTabs({ preview, edit, h5 }: LessonTabsProps) {
-  const [active, setActive] = useState<'preview' | 'edit' | 'h5'>('preview');
+export function LessonTabs({
+  preview,
+  edit,
+  h5,
+  initialTab = 'preview',
+}: LessonTabsProps & { initialTab?: 'preview' | 'edit' | 'h5' }) {
+  const [active, setActive] = useState<'preview' | 'edit' | 'h5'>(initialTab);
 
   return (
     <div className="mt-4">
