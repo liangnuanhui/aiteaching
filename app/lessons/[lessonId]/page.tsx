@@ -53,9 +53,9 @@ export default async function LessonDetailPage({ params, searchParams }: LessonP
   }
 
   const initialTabFromSearch = sp?.tab;
-  let initialTab: 'preview' | 'edit' | 'h5' = 'preview';
-  if (initialTabFromSearch === 'edit' || initialTabFromSearch === 'h5') {
-    initialTab = initialTabFromSearch;
+  let initialTab: 'edit' | 'h5' = 'edit';
+  if (initialTabFromSearch === 'h5') {
+    initialTab = 'h5';
   }
 
   const statusLabel =
@@ -68,7 +68,7 @@ export default async function LessonDetailPage({ params, searchParams }: LessonP
           <div>
             <h1 className="text-3xl font-bold">{lesson.title}</h1>
             <p className="text-muted-foreground mt-2 text-sm">
-              班级：{lesson.class?.name}（{lesson.class?.gradeLevel}） · 课程 ID：{lesson.id}
+              班级：{lesson.class?.name}（{lesson.class?.gradeLevel}）
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               状态：
@@ -102,32 +102,12 @@ export default async function LessonDetailPage({ params, searchParams }: LessonP
 
         <LessonTabs
           initialTab={initialTab}
-          preview={
-            <Card>
-              <CardHeader>
-                <CardTitle>教案预览</CardTitle>
-                <CardDescription>AI 生成的教案原文（Markdown），仅供阅读。</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {lesson.mdPlan ? (
-                  <pre className="max-h-[420px] overflow-auto rounded-md bg-muted p-4 text-xs whitespace-pre-wrap">
-                    {lesson.mdPlan}
-                  </pre>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    当前课程卡片还没有教案内容，可能是 AI 生成失败或尚未生成。
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          }
           edit={
             <Card>
               <CardHeader>
                 <CardTitle>教案编辑</CardTitle>
                 <CardDescription>
-                  可以在此修改教案内容。系统仍会以 Markdown
-                  形式保存，但你可以通过上方的结构化表单或下方的高级模式来编辑。
+                  可以在此修改教案内容。系统会自动保存，同时你也可以点击右下角按钮手动保存。
                 </CardDescription>
               </CardHeader>
               <CardContent>

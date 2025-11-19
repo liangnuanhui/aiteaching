@@ -316,6 +316,51 @@ export async function updateLessonPlan(formData: FormData) {
 }
 
 /**
+ * Update lesson markdown plan without redirect (for autosave)
+ */
+export async function autosaveLessonPlan(formData: FormData) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect('/login');
+  }
+
+  const lessonIdValue = formData.get('lessonId');
+  const mdPlanValue = formData.get('mdPlan');
+
+  const lessonId = Number(lessonIdValue ?? '');
+  const mdPlan = (mdPlanValue ?? '').toString();
+
+  if (!lessonId || !Number.isFinite(lessonId)) {
+    throw new Error('Invalid lesson id');
+  }
+
+  const userId = Number(session.user.id);
+  const prisma = createPrismaClient();
+
+  const lesson = await prisma.lessonCard.findFirst({
+    where: {
+      id: lessonId,
+      class: {
+        teacherId: userId,
+      },
+    },
+  });
+
+  if (!lesson) {
+    throw new Error('Lesson not found or you do not have permission to edit it');
+  }
+
+  await prisma.lessonCard.update({
+    where: { id: lesson.id },
+    data: {
+      mdPlan,
+      updatedAt: Math.floor(Date.now() / 1000),
+    },
+  });
+}
+
+/**
  * Update lesson H5 JSON (slides / media)
  */
 export async function updateLessonH5(formData: FormData) {
