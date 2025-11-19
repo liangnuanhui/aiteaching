@@ -153,6 +153,7 @@ model LessonCard {
 
   class             Class        @relation(fields: [classId], references: [id])
   uploads           Upload[]
+  reports           Report[]
 
   @@index([classId])
   @@index([lessonGroupId])
@@ -221,4 +222,17 @@ model Upload {
   @@index([fileHash])
   @@index([triageStatus])
   @@map("uploads")
+}
+
+model Report {
+  id          Int        @id @default(autoincrement())
+  lessonId    Int        @map("lesson_id")
+  reportType  String     @default("class") @map("report_type") // "class", "student", "term"
+  content     String     // Markdown content
+  generatedAt Int        @default(dbgenerated("(strftime('%s', 'now'))")) @map("generated_at")
+
+  lesson LessonCard @relation(fields: [lessonId], references: [id])
+
+  @@index([lessonId])
+  @@map("reports")
 }

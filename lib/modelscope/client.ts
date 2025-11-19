@@ -14,9 +14,19 @@ import { getEnv } from '@/lib/config/env';
 
 const MODELSCOPE_BASE_URL = 'https://api-inference.modelscope.cn/v1';
 
+export type MessageContent =
+  | string
+  | Array<{
+      type: 'text' | 'image_url';
+      text?: string;
+      image_url?: {
+        url: string;
+      };
+    }>;
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
-  content: string;
+  content: MessageContent;
 }
 
 export interface ChatCompletionOptions {

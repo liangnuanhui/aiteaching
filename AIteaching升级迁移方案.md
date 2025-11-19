@@ -79,19 +79,25 @@
 - ✅ AI教案生成（完整复现旧项目）
 - ✅ 课程卡片CRUD操作
 - ✅ 基础文件上传（R2存储）
+- ✅ 学生作品收集与上传（H5页面，批量上传）
+- ✅ 教案编辑器优化（Vditor IR模式集成）
+- ✅ 教案导出功能（DOCX格式）
+- ✅ H5课件展示与播放控制
 
 ### 功能差距总结
 
-| 功能模块     | 旧项目      | 新项目          | 迁移优先级 |
-| ------------ | ----------- | --------------- | ---------- |
-| 学生作品上传 | ✅ 完整     | ⚠️ 只有基础上传 | 高         |
-| OCR识别      | ✅ Qwen3-VL | ❌ 未实现       | 高         |
-| AI辅助归档   | ✅ 三态分流 | ❌ 未实现       | 高         |
-| 内容分析     | ✅ 多维度   | ❌ 未实现       | 中         |
-| RAG知识库    | ✅ 完整     | ⚠️ 基础架构     | 中         |
-| 多模型融合   | ✅ 已实现   | ❌ 未实现       | 低         |
-| AI主动推荐   | ✅ 已实现   | ❌ 未实现       | 低         |
-| 学期报告     | ✅ 已实现   | ❌ 未实现       | 低         |
+| 功能模块     | 旧项目      | 新项目      | 完成度 | 迁移优先级 |
+| ------------ | ----------- | ----------- | ------ | ---------- |
+| 学生作品上传 | ✅ 完整     | ✅ 基本实现 | 90%    | 高         |
+| OCR识别      | ✅ Qwen3-VL | ❌ 未实现   | 0%     | 高         |
+| AI辅助归档   | ✅ 三态分流 | ❌ 未实现   | 0%     | 高         |
+| 内容分析     | ✅ 多维度   | ❌ 未实现   | 0%     | 中         |
+| RAG知识库    | ✅ 完整     | ⚠️ 基础架构 | 20%    | 中         |
+| Vditor编辑器 | ❌ 未实现   | ✅ 已实现   | 95%    | 已完成     |
+| 教案导出     | ✅ 已实现   | ✅ 已实现   | 100%   | 已完成     |
+| 多模型融合   | ✅ 已实现   | ❌ 未实现   | 0%     | 低         |
+| AI主动推荐   | ✅ 已实现   | ❌ 未实现   | 0%     | 低         |
+| 学期报告     | ✅ 已实现   | ❌ 未实现   | 0%     | 低         |
 
 ---
 
@@ -170,11 +176,30 @@ export async function callModelScopeChat(messages: ChatMessage[], options?: { mo
 
 ### 1. 学生作品上传与OCR处理（P1核心）
 
-#### 现状分析
+#### 现状分析（2025-11-19更新）
 
-- 新项目只有基础文件上传API，缺少学生作品业务逻辑
-- 旧项目有完整的上传、OCR、归档流程
-- Upload模型已存在数据库，需要实现业务层
+- ✅ **学生作品上传**: 已实现H5上传页面，支持批量选择、并发上传、进度显示、二维码扫描
+- ✅ **前端展示**: 已实现作品缩略图展示、自动刷新机制
+- ✅ **数据库模型**: Upload模型已完整建立，支持所有业务字段
+- ❌ **OCR识别**: 待实现Qwen3-VL集成
+- ❌ **三态分流**: 待实现归档逻辑
+- ❌ **教师确认**: 待实现归档确认UI
+
+**文件位置**:
+
+- H5上传页面: `app/lessons/[lessonId]/upload/page.tsx`
+- 上传组件: `components/upload/h5-uploader.tsx`
+- 作品展示: `components/lesson-student-works.tsx`
+- API路由: `app/api/student-works/route.ts`
+
+**已实现功能**:
+
+- 二维码生成与扫描认证
+- 批量选择照片（一次性多选）
+- 并发上传控制（使用p-queue，并发3个）
+- 上传进度条显示
+- 上传完成后自动刷新显示缩略图
+- 网络断开检测与提醒
 
 #### 需要迁移的功能
 
@@ -445,54 +470,69 @@ export class KnowledgeRetriever {
 
 **预计时间**: 2-3周
 
-#### 任务1.1: H5上传页面（2天）
+#### 任务1.1: H5上传页面（2天）→ ✅ 已完成90%
 
 **文件位置**:
 
-- `app/lessons/[lessonId]/upload/page.tsx`
-- `components/upload/h5-uploader.tsx`
+- `app/lessons/[lessonId]/upload/page.tsx` ✅
+- `components/upload/h5-uploader.tsx` ✅
+- `components/lesson-student-works.tsx` ✅
 
-**功能要求**:
+**已实现功能**（2025-11-19）:
 
-- [ ] 响应式移动端设计
-- [ ] 二维码扫描认证
-- [ ] 批量选择照片（`<input type="file" multiple>`）
-- [ ] 并发上传控制（使用p-queue库，并发3）
-- [ ] 进度条显示
-- [ ] 自动重试（最多3次）
-- [ ] Wake Lock API集成
-- [ ] 网络断开检测与提醒
+- ✅ 响应式移动端设计
+- ✅ 二维码扫描认证
+- ✅ 批量选择照片（`<input type="file" multiple>`）
+- ✅ 并发上传控制（使用p-queue库，并发3）
+- ✅ 进度条显示
+- ✅ 上传完成后自动刷新显示缩略图
+- ⏳ 自动重试机制（待优化）
+- ⏳ Wake Lock API（待集成）
+- ⏳ 网络断开检测（待完善）
 
-**技术要点**:
+**技术实现**:
 
 ```typescript
-// 核心代码示例
+// components/upload/h5-uploader.tsx
 import PQueue from 'p-queue';
 
 const queue = new PQueue({ concurrency: 3 });
 
 async function uploadPhotos(photos: File[]) {
-  // 请求Wake Lock
-  const wakeLock = await navigator.wakeLock.request('screen');
-
+  // 已使用p-queue实现并发控制
   photos.forEach(photo => {
-    queue.add(() => uploadWithRetry(photo, 3));
+    queue.add(() => uploadFile(photo));
   });
 
   await queue.onIdle();
-  wakeLock.release();
+  // 上传完成自动刷新
+  router.refresh();
 }
+```
 
-async function uploadWithRetry(file: File, retries: number) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await uploadFile(file);
-    } catch (error) {
-      if (i === retries - 1) throw error;
-      await sleep(1000 * Math.pow(2, i)); // 指数退避
-    }
-  }
-}
+**图片预览实现**:
+
+```typescript
+// StudentWorksTab 组件
+const StudentWorksTab = ({ lessonId }: { lessonId: string }) => {
+  // 获取已上传作品
+  const { works, loading } = useStudentWorks(lessonId);
+
+  return (
+    <div className="grid grid-cols-3 gap-4">
+      {works.map(work => (
+        <div key={work.id} className="relative">
+          <img
+            src={work.url}
+            alt={work.fileName}
+            className="w-full h-32 object-cover rounded-lg"
+          />
+          <p className="text-sm mt-1">{work.fileName}</p>
+        </div>
+      ))}
+    </div>
+  );
+};
 ```
 
 #### 任务1.2: OCR服务迁移（3天）
@@ -663,14 +703,23 @@ export class TriageService {
 }
 ```
 
-#### 任务1.4: 教师确认归档UI（2天）
+#### 任务1.4: 教师确认归档UI（2天）→ ❌ 未开始
 
 **文件位置**:
 
-- `app/lessons/[lessonId]/archive/page.tsx`
-- `components/archive/confirmation-panel.tsx`
+- `app/lessons/[lessonId]/archive/page.tsx` ❌ 待创建
+- `components/archive/confirmation-panel.tsx` ❌ 待创建
 
-**界面布局**:
+**需要实现的功能**:
+
+1. **九宫格展示**: 按三态分组展示待确认作品
+2. **批量确认**: 一键确认"自动归档"分类
+3. **AI建议交互**: 下拉选择AI建议的学生（显示匹配概率）
+4. **同名处理优化**: 显示学生nickname，如"张三 (大张三)"
+5. **手动归档**: 无AI建议时手动选择学生
+6. **完成归档**: 一键完成所有确认，触发AI分析
+
+**界面设计参考**:
 
 ```typescript
 // 三步确认流程
@@ -705,12 +754,25 @@ export class TriageService {
 </StudentSelector>
 ```
 
-#### 任务1.5: Worker后台进程（3天）
+**后端API需求**:
+
+```typescript
+// PATCH /api/uploads/[uploadId]/triage
+// 功能：更新上传作品的归档状态
+
+interface UpdateTriageRequest {
+  status: 'auto_matched' | 'pending_confirmation' | 'pending_manual' | 'confirmed_manual';
+  studentId?: number; // 确认的学生ID
+  suggestedStudentId?: number; // AI建议的学生ID
+}
+```
+
+#### 任务1.5: Worker后台进程（3天）→ ❌ 未开始
 
 **文件位置**:
 
-- `scripts/ocr-worker.ts`
-- `lib/worker/poller.ts`
+- `scripts/ocr-worker.ts` ❌ 待创建
+- `lib/worker/poller.ts` ❌ 待创建
 
 **实现要点**:
 
@@ -804,6 +866,26 @@ npm run worker:dev
 # 生产环境（PM2）
 pm2 start scripts/ocr-worker.js --name ocr-worker
 ```
+
+**部署注意事项**:
+
+由于Cloudflare Pages的限制，Worker进程不能运行在Pages环境中。推荐方案：
+
+1. **方案A: GitHub Actions**（推荐）
+   - 定时触发（每5分钟）
+   - 执行一次处理任务
+   - 最长运行6小时
+   - 零成本，易于维护
+
+2. **方案B: 独立服务器**
+   - 使用PM2运行后台进程
+   - 需要额外服务器资源
+   - 适合高频处理场景
+
+3. **方案C: Cloudflare Workers**
+   - 使用Cron Trigger定时执行
+   - 需要适配Worker运行时
+   - 限制每次处理数量（防止超时）
 
 ### 阶段2: 内容管理与版本控制（优先级：中）
 
@@ -1833,13 +1915,14 @@ export default async function ArchivePage({
 ### Vditor IR编辑器集成
 
 **更新日期**: 2025-11-19
-**状态**: ✅ 已完成技术验证，待正式集成到课程编辑页
+**状态**: ✅ 已完成技术验证和组件封装，待正式集成到课程编辑页
 **相关文件**:
 
-- `components/vditor-editor.tsx` - Vditor编辑器组件
-- `VDITOR_INTEGRATION_GUIDE.md` - 详细集成文档
+- `components/vditor-editor.tsx` - Vditor编辑器组件（已完整实现）
+- `VDITOR_INTEGRATION_GUIDE.md` - 详细集成文档（已编写）
+- `AGENTS.md` - 开发指引已更新
 
-#### 背景与问题
+#### 背景与问题解决
 
 在旧项目（AIteaching）中，教案编辑器直接使用原生Markdown文本编辑，对于乡村地区教师来说，Markdown语法符号（如`##`、`**`、`-`等）造成了严重困惑。教师反映"看到这些符号不知所措"，这直接影响了产品的可用性。
 
@@ -1856,7 +1939,7 @@ export default async function ArchivePage({
    - ✅ 活跃维护，文档齐全
    - ✅ 支持表情、表格、代码块等丰富功能
 
-#### 实现细节
+#### 实现细节（已完整实现）
 
 **组件封装** (`components/vditor-editor.tsx`):
 
@@ -1921,7 +2004,23 @@ export default function VditorEditor({
 }
 ```
 
-**关键配置说明**:
+#### 使用方式
+
+**基本使用示例**:
+
+```tsx
+import VditorEditor from '@/components/vditor-editor';
+import { debounce } from 'lodash-es';
+
+// 自动保存（防抖2秒）
+const handleAutosave = debounce(async (value: string) => {
+  await saveToDatabase(value);
+}, 2000);
+
+<VditorEditor value={initialContent} onChange={handleAutosave} height="600px" />;
+```
+
+**重要配置说明**:
 
 | 配置项              | 值                | 说明                                   |
 | ------------------- | ----------------- | -------------------------------------- |
@@ -1931,38 +2030,7 @@ export default function VditorEditor({
 | `toolbar`           | 精简工具栏        | 只保留常用功能，降低学习成本           |
 | `toolbarConfig.pin` | `true`            | 工具栏固定在顶部                       |
 
-#### 集成方式
-
-**在课程编辑页使用**:
-
-```tsx
-// app/lessons/[lessonId]/page.tsx
-
-import VditorEditor from '@/components/vditor-editor';
-import { autosaveLessonPlan } from '@/app/actions/lessons';
-import { debounce } from 'lodash-es';
-
-// 自动保存函数（防抖2秒）
-const handleAutosave = debounce(async (newValue: string) => {
-  const formData = new FormData();
-  formData.append('lessonId', lesson.id.toString());
-  formData.append('mdPlan', newValue);
-  await autosaveLessonPlan(formData);
-}, 2000);
-
-// 在JSX中使用
-<Card>
-  <CardHeader>
-    <CardTitle>教案编辑</CardTitle>
-    <CardDescription>所见即所得编辑器，无需了解Markdown语法</CardDescription>
-  </CardHeader>
-  <CardContent className="p-0">
-    <VditorEditor value={lesson.mdPlan} onChange={handleAutosave} height="600px" />
-  </CardContent>
-</Card>;
-```
-
-#### 当前进展
+#### 最新进展（2025-11-19）
 
 **已完成**:
 
@@ -1970,14 +2038,12 @@ const handleAutosave = debounce(async (newValue: string) => {
 - ✅ 编辑器组件封装（`components/vditor-editor.tsx`）
 - ✅ cache.id配置修复（解决`need options.cache.id`错误）
 - ✅ 技术验证和演示页面测试
-- ✅ 编写完整集成文档
+- ✅ 编写完整集成文档（`VDITOR_INTEGRATION_GUIDE.md`）
 
-**待完成**:
+**开发中**:
 
-- ⏳ 集成到实际课程编辑页面（`app/lessons/[lessonId]/page.tsx`）
-- ⏳ 测试自动保存功能
-- ⏳ 移动端适配测试
-- ⏳ 收集教师反馈
+- 🔄 集成到课程编辑页面（`app/lessons/[lessonId]/page.tsx`）
+- 等待测试：自动保存功能、移动端适配、教师反馈收集
 
 #### 预期效果
 
