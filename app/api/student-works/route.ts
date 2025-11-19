@@ -104,14 +104,9 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      throw new AuthenticationError('请先登录');
-    }
-
-    const userId = Number(session.user.id);
     const searchParams = request.nextUrl.searchParams;
     const lessonId = Number(searchParams.get('lessonId') || '');
+    const token = searchParams.get('token');
 
     if (!lessonId || !Number.isFinite(lessonId)) {
       throw new ValidationError('lessonId is required and must be a number');
@@ -119,17 +114,38 @@ export async function GET(request: NextRequest) {
 
     const prisma = createPrismaClient();
 
-    const lesson = await prisma.lessonCard.findFirst({
-      where: {
-        id: lessonId,
-        class: {
-          teacherId: userId,
-        },
-      },
-    });
+    if (token) {
+      // H5 上传页通过 token 访问，仅检查课程存在性
+      const valid = verifyLessonUploadToken(lessonId, token);
+      if (!valid) {
+        throw new AuthenticationError('无权限查看此课程');
+      }
+      const lesson = await prisma.lessonCard.findFirst({
+        where: { id: lessonId },
+      });
+      if (!lesson) {
+        throw new AuthenticationError('课程不存在');
+      }
+    } else {
+      // 老师在课程详情页访问，需登录并验证课程归属
+      const session = await auth();
+      if (!session?.user?.id) {
+        throw new AuthenticationError('请先登录');
+      }
+      const userId = Number(session.user.id);
 
-    if (!lesson) {
-      throw new AuthenticationError('无权限查看此课程');
+      const lesson = await prisma.lessonCard.findFirst({
+        where: {
+          id: lessonId,
+          class: {
+            teacherId: userId,
+          },
+        },
+      });
+
+      if (!lesson) {
+        throw new AuthenticationError('无权限查看此课程');
+      }
     }
 
     const works = await prisma.upload.findMany({

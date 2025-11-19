@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 
-// GET /api/storage/local/:key
-export async function GET(request: NextRequest, { params }: { params: { key: string[] } }) {
+// GET /api/storage/local/:key*
+export async function GET(_request: NextRequest, { params }: { params: { key: string[] } }) {
   try {
     const key = params.key.join('/');
     const uploadDir = process.env.LOCAL_UPLOAD_DIR || './uploads';
@@ -47,16 +47,12 @@ export async function GET(request: NextRequest, { params }: { params: { key: str
       headers: {
         'Content-Type': contentType,
         'Content-Length': stats.size.toString(),
-        'Cache-Control': 'public, max-age=31536000', // 1 year cache
-        'Access-Control-Allow-Origin': '*', // Allow CORS for direct access
+        'Cache-Control': 'public, max-age=31536000',
+        'Access-Control-Allow-Origin': '*',
       },
     });
   } catch (error: unknown) {
     console.error('Error serving local file:', error);
-
-    if ((error as { code?: string }).code === 'ENOENT') {
-      return NextResponse.json({ error: 'File not found' }, { status: 404 });
-    }
 
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

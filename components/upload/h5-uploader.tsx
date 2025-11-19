@@ -8,7 +8,7 @@
 
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,8 +32,34 @@ export function H5Uploader({ lessonId, uploadToken }: H5UploaderProps) {
   const [files, setFiles] = useState<FileList | null>(null);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 初次进入页面时，拉取当前课程已上传作品总数
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchCount = async () => {
+      try {
+        const res = await fetch(
+          `/api/student-works?lessonId=${lessonId}&token=${encodeURIComponent(uploadToken)}`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && typeof data.count === 'number') {
+          setTotalCount(data.count);
+        }
+      } catch (error) {
+        console.error('加载作品数量失败:', error);
+      }
+    };
+
+    void fetchCount();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lessonId, uploadToken]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files;
@@ -106,8 +132,20 @@ export function H5Uploader({ lessonId, uploadToken }: H5UploaderProps) {
         throw new Error('保存作品记录失败');
       }
 
-      setUploadedFiles(prev => [...uploadResults, ...prev]);
-      alert(`上传成功！共 ${uploadResults.length} 个作品。`);
+      // 3. 重新拉取当前课程的作品数量
+      try {
+        const countRes = await fetch(
+          `/api/student-works?lessonId=${lessonId}&token=${encodeURIComponent(uploadToken)}`
+        );
+        if (countRes.ok) {
+          const data = await countRes.json();
+          setTotalCount(typeof data.count === 'number' ? data.count : null);
+        }
+      } catch (err) {
+        console.error('刷新作品数量失败:', err);
+      }
+
+      alert(`上传成功！本次共上传 ${uploadResults.length} 个作品。`);
       clearSelection();
     } catch (error) {
       console.error('上传学生作品失败:', error);
@@ -211,31 +249,14 @@ export function H5Uploader({ lessonId, uploadToken }: H5UploaderProps) {
       </div>
 
       {/* 已上传文件简单预览 */}
-      {uploadedFiles.length > 0 && (
-        <div className="mt-4 space-y-2">
-          <h3 className="text-sm font-medium">已上传作品</h3>
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-            {uploadedFiles.map((file, idx) => (
-              <Card key={idx} className="overflow-hidden">
-                <CardContent className="p-2">
-                  {file.contentType?.startsWith('image/') ? (
-                    <Image
-                      src={file.url}
-                      alt={file.name}
-                      width={120}
-                      height={120}
-                      className="h-20 w-full rounded object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-20 w-full items-center justify-center rounded bg-muted">
-                      <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                  )}
-                  <p className="mt-1 truncate text-xs text-muted-foreground">{file.name}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+      {totalCount !== null && (
+        <div className="mt-4">
+          <Card>
+            <CardContent className="py-3 text-sm text-muted-foreground">
+              当前课程已上传作品数量：
+              <span className="font-semibold text-foreground">{totalCount}</span>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

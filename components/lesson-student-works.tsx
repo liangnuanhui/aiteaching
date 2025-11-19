@@ -7,10 +7,11 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 const QR_BASE_URL = process.env.NEXT_PUBLIC_QR_BASE_URL;
 
@@ -41,6 +42,7 @@ export function LessonStudentWorks({
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [works, setWorks] = useState<UploadWork[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
 
   useEffect(() => {
     // 在客户端根据当前 origin 生成上传页完整 URL
@@ -56,19 +58,38 @@ export function LessonStudentWorks({
       });
   }, [lessonId, uploadToken]);
 
-  useEffect(() => {
+  const loadWorks = useCallback(() => {
     setLoading(true);
     fetch(`/api/student-works?lessonId=${lessonId}`)
       .then(res => (res.ok ? res.json() : Promise.reject()))
       .then((data: { success: boolean; data: UploadWork[] }) => {
         if (!data?.success) return;
         setWorks(data.data || []);
+        setLastUpdatedAt(new Date());
       })
       .catch(err => {
         console.error('加载学生作品失败:', err);
       })
       .finally(() => setLoading(false));
   }, [lessonId]);
+
+  useEffect(() => {
+    // 首次加载
+    loadWorks();
+
+    // 短时轮询：Tab 打开后的前 2 分钟内每 10 秒刷新一次，避免整夜轮询
+    let count = 0;
+    const maxPolls = 12; // 12 * 10s = 120s
+    const timer = setInterval(() => {
+      count += 1;
+      loadWorks();
+      if (count >= maxPolls) {
+        clearInterval(timer);
+      }
+    }, 10000);
+
+    return () => clearInterval(timer);
+  }, [loadWorks]);
 
   const headerText =
     className || gradeLevel
@@ -117,11 +138,17 @@ export function LessonStudentWorks({
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>已上传作品</CardTitle>
-          <CardDescription>
-            当前课程共 {works.length} 个作品{loading ? '（加载中…）' : ''}。
-          </CardDescription>
+        <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>已上传作品</CardTitle>
+            <CardDescription>
+              当前课程共 {works.length} 个作品{loading ? '（加载中…）' : ''}{' '}
+              {lastUpdatedAt && !loading ? `· 最近更新 ${lastUpdatedAt.toLocaleTimeString()}` : ''}
+            </CardDescription>
+          </div>
+          <Button type="button" size="xs" variant="outline" onClick={loadWorks} disabled={loading}>
+            刷新列表
+          </Button>
         </CardHeader>
         <CardContent>
           {works.length === 0 && !loading && (
@@ -132,7 +159,7 @@ export function LessonStudentWorks({
               {works.map(work => (
                 <div key={work.id} className="overflow-hidden rounded-md border bg-muted/40">
                   <div className="h-28 w-full bg-background">
-                    {work.contentType?.startsWith('image/') && work.url ? (
+                    {work.url ? (
                       <Image
                         src={work.url}
                         alt={work.originalFilename}
