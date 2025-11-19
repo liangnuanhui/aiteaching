@@ -1,44 +1,42 @@
+/**
+ * VditorEditor
+ * 使用 Vditor IR 模式提供所见即所得的教案编辑体验。
+ * 数据持久化通过底部“保存教案”按钮调用 server action 完成；
+ * 本地编辑过程由 Vditor 自带缓存负责，防止刷新时丢稿。
+ */
+
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Vditor from 'vditor';
 import 'vditor/dist/index.css';
+import { Button } from '@/components/ui/button';
+import { updateLessonPlan } from '@/app/actions/lessons';
 
 interface VditorEditorProps {
-  value?: string;
-  onChange?: (value: string) => void;
+  lessonId: number;
+  value?: string | null;
   height?: string;
-  readOnly?: boolean;
-  className?: string;
 }
 
-export default function VditorEditor({
-  value = '',
-  onChange,
-  height = '600px',
-  readOnly = false,
-  className = '',
-}: VditorEditorProps) {
-  const editorRef = useRef<HTMLDivElement>(null);
-  const [vditor, setVditor] = useState<Vditor | null>(null);
+export function VditorEditor({ lessonId, value = '', height = '600px' }: VditorEditorProps) {
+  const editorRef = useRef<HTMLDivElement | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [currentValue, setCurrentValue] = useState<string>(value || '');
 
   useEffect(() => {
     if (!editorRef.current) return;
 
-    // Initialize Vditor
-    const editor = new Vditor(editorRef.current, {
-      cache: {
-        id: 'vditor-editor-demo', // ✅ 添加缓存ID，解决报错
-      },
-      mode: readOnly ? 'preview' : 'ir', // ✅ IR模式 = 即时渲染（隐藏Markdown符号）
-      value,
+    const el = editorRef.current;
+
+    const editor = new Vditor(el, {
+      mode: 'ir', // 即时渲染模式，隐藏 Markdown 符号
+      value: value || '',
       height,
       lang: 'zh_CN',
       theme: 'classic',
       icon: 'ant',
       toolbar: [
-        'emoji',
         'headings',
         'bold',
         'italic',
@@ -48,66 +46,64 @@ export default function VditorEditor({
         'ordered-list',
         'check',
         'quote',
-        'code',
+        '|',
         'table',
         'link',
         '|',
         'undo',
         'redo',
         'fullscreen',
-        {
-          name: 'preview',
-          tip: '预览模式',
-        },
+        'preview',
       ],
       toolbarConfig: {
         pin: true,
+      },
+      cache: {
+        enable: true,
+        id: `lesson-${lessonId}-plan`,
       },
       preview: {
         delay: 0,
       },
       input: (newValue: string) => {
-        onChange?.(newValue);
+        // 记录当前编辑内容，用于提交到服务器
+        setCurrentValue(newValue);
       },
       after: () => {
         setIsReady(true);
-        console.log('Vditor IR 模式已加载完成');
       },
     });
 
-    setVditor(editor);
-
-    // Cleanup
     return () => {
       try {
         editor.destroy();
-      } catch (e) {
-        console.warn('Vditor cleanup warning:', e);
+      } catch {
+        // ignore
       }
     };
-  }, []);
-
-  // Sync value changes from props
-  useEffect(() => {
-    if (vditor && isReady) {
-      const currentValue = vditor.getValue();
-      if (currentValue !== value) {
-        vditor.setValue(value);
-      }
-    }
-  }, [value, vditor, isReady]);
+  }, [height, lessonId, value]);
 
   return (
-    <div className={`relative ${className}`}>
+    <form action={updateLessonPlan} className="space-y-3">
+      <input type="hidden" name="lessonId" value={lessonId} />
+      <input type="hidden" name="mdPlan" value={currentValue} />
+
       {!isReady && (
-        <div className="flex h-64 items-center justify-center border rounded-md bg-muted/20">
+        <div className="flex h-64 items-center justify-center rounded-md border bg-muted/20">
           <div className="flex items-center gap-2">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             <span className="text-sm text-muted-foreground">正在加载编辑器...</span>
           </div>
         </div>
       )}
-      <div ref={editorRef} style={{ height }} className="vditor-container" />
-    </div>
+
+      <div ref={editorRef} />
+
+      <div className="flex justify-end">
+        <Button type="submit" size="sm">
+          保存教案
+        </Button>
+      </div>
+    </form>
   );
 }

@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { updateLessonStatus } from '@/app/actions/lessons';
 import { LessonTabs } from '@/components/lesson-tabs';
 import { LessonH5Player } from '@/components/lesson-h5-player';
-import { LessonPlanEditor } from '@/components/lesson-plan-editor';
 import { LessonH5Editor } from '@/components/lesson-h5-editor';
+import { VditorEditor } from '@/components/vditor-editor';
 
 export const runtime = 'nodejs';
 
@@ -107,11 +107,11 @@ export default async function LessonDetailPage({ params, searchParams }: LessonP
               <CardHeader>
                 <CardTitle>教案编辑</CardTitle>
                 <CardDescription>
-                  可以在此修改教案内容。系统会自动保存，同时你也可以点击右下角按钮手动保存。
+                  可以在此修改教案内容。编辑完成后请点击“保存教案”。
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <LessonPlanEditor lessonId={lesson.id} initialMdPlan={lesson.mdPlan} />
+                <VditorEditor lessonId={lesson.id} value={lesson.mdPlan} />
               </CardContent>
             </Card>
           }

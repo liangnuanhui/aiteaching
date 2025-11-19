@@ -318,18 +318,15 @@ export async function updateLessonPlan(formData: FormData) {
 /**
  * Update lesson markdown plan without redirect (for autosave)
  */
-export async function autosaveLessonPlan(formData: FormData) {
+export async function autosaveLessonPlan(input: { lessonId: number; mdPlan: string }) {
   const session = await auth();
 
   if (!session?.user?.id) {
     redirect('/login');
   }
 
-  const lessonIdValue = formData.get('lessonId');
-  const mdPlanValue = formData.get('mdPlan');
-
-  const lessonId = Number(lessonIdValue ?? '');
-  const mdPlan = (mdPlanValue ?? '').toString();
+  const lessonId = Number(input.lessonId ?? '');
+  const mdPlan = (input.mdPlan ?? '').toString();
 
   if (!lessonId || !Number.isFinite(lessonId)) {
     throw new Error('Invalid lesson id');
