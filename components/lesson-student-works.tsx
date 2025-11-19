@@ -53,24 +53,27 @@ export function LessonStudentWorks({
 
     QRCode.toDataURL(uploadUrl, { margin: 1, width: 240 })
       .then(setQrDataUrl)
-      .catch(err => {
+      .catch((err: unknown) => {
         console.error('生成二维码失败:', err);
       });
   }, [lessonId, uploadToken]);
 
-  const loadWorks = useCallback(() => {
+  const loadWorks = useCallback(async () => {
     setLoading(true);
-    fetch(`/api/student-works?lessonId=${lessonId}`)
-      .then(res => (res.ok ? res.json() : Promise.reject()))
-      .then((data: { success: boolean; data: UploadWork[] }) => {
-        if (!data?.success) return;
-        setWorks(data.data || []);
-        setLastUpdatedAt(new Date());
-      })
-      .catch(err => {
-        console.error('加载学生作品失败:', err);
-      })
-      .finally(() => setLoading(false));
+    try {
+      const res = await fetch(`/api/student-works?lessonId=${lessonId}`);
+      if (!res.ok) {
+        throw new Error(`Failed to load works: ${res.status}`);
+      }
+      const data = (await res.json()) as { success: boolean; data: UploadWork[] };
+      if (!data?.success) return;
+      setWorks(data.data || []);
+      setLastUpdatedAt(new Date());
+    } catch (err) {
+      console.error('加载学生作品失败:', err);
+    } finally {
+      setLoading(false);
+    }
   }, [lessonId]);
 
   useEffect(() => {
@@ -146,7 +149,13 @@ export function LessonStudentWorks({
               {lastUpdatedAt && !loading ? `· 最近更新 ${lastUpdatedAt.toLocaleTimeString()}` : ''}
             </CardDescription>
           </div>
-          <Button type="button" size="xs" variant="outline" onClick={loadWorks} disabled={loading}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => void loadWorks()}
+            disabled={loading}
+          >
             刷新列表
           </Button>
         </CardHeader>
