@@ -2,6 +2,8 @@ import { auth } from '@/lib/auth/config';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { handleSignOut } from '@/app/actions/auth';
+import { Suspense } from 'react';
+import { HealthStatusCard } from '@/components/health-status-card';
 
 export const runtime = 'edge';
 
@@ -76,19 +78,20 @@ export default async function Home() {
           </div>
         </div>
 
-        <div className="text-center mt-8 space-x-3">
-          <a
-            href="/api/health"
-            className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        <div className="text-center mt-8 space-y-3">
+          <Suspense
+            fallback={<div className="text-sm text-muted-foreground">正在检测系统健康状况…</div>}
           >
-            检查系统健康状态
-          </a>
-          <a
-            href="/upload"
-            className="inline-block px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-          >
-            试一试上传文件
-          </a>
+            <HealthStatusCard />
+          </Suspense>
+          <div className="space-x-3">
+            <a
+              href="/upload"
+              className="inline-block px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+            >
+              试一试上传文件
+            </a>
+          </div>
         </div>
       </main>
 

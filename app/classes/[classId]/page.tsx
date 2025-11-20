@@ -4,8 +4,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/db/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { createLesson } from '@/app/actions/lessons';
-import { CreateLessonSubmitButton } from '@/components/create-lesson-submit-button';
+import { CreateLessonDialog } from '@/components/create-lesson-dialog';
 
 export const runtime = 'nodejs';
 
@@ -95,15 +94,28 @@ export default async function ClassDetailPage({ params }: ClassPageProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle>课程卡片</CardTitle>
-            <CardDescription>
-              为本班每一节课创建一张课程卡片，后续可绑定作品上传与 AI 分析。
-            </CardDescription>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle>课程卡片</CardTitle>
+                <CardDescription>
+                  为本班每一节课创建一张课程卡片，后续可绑定作品上传与 AI 分析。
+                </CardDescription>
+              </div>
+              <CreateLessonDialog
+                classes={[
+                  {
+                    id: cls.id,
+                    name: cls.name,
+                    gradeLevel: cls.gradeLevel,
+                  },
+                ]}
+              />
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {cls.lessons.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                暂无课程卡片，请先在下方填写课题名称，新建一张课程卡片。
+                暂无课程卡片，请直接点击上方“使用 AI 创建新课程”按钮快速生成。
               </p>
             ) : (
               <ul className="space-y-2">
@@ -128,23 +140,10 @@ export default async function ClassDetailPage({ params }: ClassPageProps) {
               </ul>
             )}
 
-            <form action={createLesson} className="mt-2 space-y-3">
-              <input type="hidden" name="classId" value={cls.id} />
-              <div className="space-y-2">
-                <label htmlFor="lesson-title" className="text-sm font-medium">
-                  新建课程卡片
-                </label>
-                <input
-                  id="lesson-title"
-                  name="title"
-                  type="text"
-                  required
-                  placeholder="例如：认识分数、春天的校园写作课"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                />
-              </div>
-              <CreateLessonSubmitButton />
-            </form>
+            <p className="text-xs text-muted-foreground">
+              小贴士：你当前正位于 {cls.name}，通过“使用 AI
+              创建新课程”按钮即可生成只属于该班的课程卡片。
+            </p>
           </CardContent>
         </Card>
       </div>
