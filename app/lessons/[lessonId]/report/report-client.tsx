@@ -28,7 +28,7 @@ export function ReportClient({ lessonId, initialReport, canGenerate }: ReportCli
         throw new Error('Failed to generate report');
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as { content: string };
       setReport(data.content);
     } catch (error) {
       console.error('Failed to generate report:', error);
@@ -106,6 +106,8 @@ function formatMarkdown(markdown: string): string {
     '<': '&lt;',
     '>': '&gt;',
   };
+
+  html = html.replace(/[&<>]/g, char => escapeMap[char] ?? char);
 
   // Headers (## -> h2, ### -> h3)
   html = html.replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold mt-6 mb-3">$1</h3>');

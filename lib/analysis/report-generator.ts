@@ -3,8 +3,19 @@
  * Generates AI-powered analysis reports for student works
  */
 
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import { callModelScopeChat } from '@/lib/modelscope/client';
+
+type UploadWithStudent = Prisma.UploadGetPayload<{
+  include: {
+    student: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+  };
+}>;
 
 /**
  * Aggregated statistics
@@ -90,7 +101,7 @@ export class ReportGenerator {
   /**
    * Aggregate upload data for analysis
    */
-  private aggregateData(uploads: any[]): AggregatedStats {
+  private aggregateData(uploads: UploadWithStudent[]): AggregatedStats {
     const byType: Record<string, number> = {};
     const byEmotion: Record<string, number> = {};
     const keywordCount: Record<string, number> = {};
@@ -110,7 +121,7 @@ export class ReportGenerator {
         for (const emotion of emotions) {
           byEmotion[emotion] = (byEmotion[emotion] || 0) + 1;
         }
-      } catch (e) {
+      } catch {
         // Ignore parsing errors
       }
 
@@ -120,7 +131,7 @@ export class ReportGenerator {
         for (const keyword of keywords) {
           keywordCount[keyword] = (keywordCount[keyword] || 0) + 1;
         }
-      } catch (e) {
+      } catch {
         // Ignore parsing errors
       }
 

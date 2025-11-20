@@ -3,9 +3,10 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 
 // GET /api/storage/local/:key*
-export async function GET(_request: NextRequest, { params }: { params: { key: string[] } }) {
+export async function GET(_request: NextRequest, context: { params: Promise<{ key: string[] }> }) {
   try {
-    const key = params.key.join('/');
+    const { key: keyParts } = await context.params;
+    const key = keyParts.join('/');
     const uploadDir = process.env.LOCAL_UPLOAD_DIR || './uploads';
     const filePath = join(uploadDir, key);
 
@@ -25,6 +26,7 @@ export async function GET(_request: NextRequest, { params }: { params: { key: st
 
     // Read file
     const file = await fs.readFile(resolvedPath);
+    const fileData = new Uint8Array(file);
 
     // Infer content type from file extension
     const ext = key.split('.').pop()?.toLowerCase();
@@ -43,7 +45,7 @@ export async function GET(_request: NextRequest, { params }: { params: { key: st
 
     const contentType = contentTypes[ext || ''] || 'application/octet-stream';
 
-    return new NextResponse(file, {
+    return new NextResponse(fileData, {
       headers: {
         'Content-Type': contentType,
         'Content-Length': stats.size.toString(),

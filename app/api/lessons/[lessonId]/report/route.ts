@@ -9,6 +9,9 @@ import { auth } from '@/lib/auth/config';
 import { createPrismaClient } from '@/lib/db/client';
 import { ReportGenerator } from '@/lib/analysis/report-generator';
 
+// Use Node.js runtime for Prisma support
+export const runtime = 'nodejs';
+
 const prisma = createPrismaClient();
 const reportGenerator = new ReportGenerator(prisma);
 

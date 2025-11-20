@@ -5,8 +5,12 @@
 
 import { auth } from '@/lib/auth/config';
 import { createPrismaClient } from '@/lib/db/client';
+import { storage } from '@/lib/storage';
 import { redirect } from 'next/navigation';
 import { ArchiveClient } from './archive-client';
+
+// Use Node.js runtime for Prisma support
+export const runtime = 'nodejs';
 
 const prisma = createPrismaClient();
 
@@ -49,7 +53,7 @@ export default async function ArchivePage({ params }: { params: Promise<{ lesson
   }
 
   // Get uploads grouped by status
-  const uploads = await prisma.upload.findMany({
+  const rawUploads = await prisma.upload.findMany({
     where: {
       lessonId,
     },
@@ -73,6 +77,11 @@ export default async function ArchivePage({ params }: { params: Promise<{ lesson
       uploadedAt: 'asc',
     },
   });
+
+  const uploads = rawUploads.map(upload => ({
+    ...upload,
+    previewUrl: storage ? storage.getUrl(upload.filePath) : '',
+  }));
 
   // Group by status
   const grouped = {

@@ -3,10 +3,12 @@ import { redirect } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Prisma } from '@prisma/client';
 import { handleSignOut } from '@/app/actions/auth';
 import { prisma } from '@/lib/db/client';
 import { CreateLessonDialog } from '@/components/create-lesson-dialog';
 import { DeleteLessonButton } from '@/components/delete-lesson-button';
+import { tableExists } from '@/lib/db/utils';
 
 export const runtime = 'nodejs';
 
@@ -19,7 +21,7 @@ export default async function DashboardPage() {
 
   const teacherId = Number(session.user.id);
 
-  const [classes, lessons] = await Promise.all([
+  const [classes, lessons, reportTableExists] = await Promise.all([
     prisma.class.findMany({
       where: { teacherId },
       orderBy: { createdAt: 'asc' },
@@ -35,7 +37,41 @@ export default async function DashboardPage() {
       },
       orderBy: { createdAt: 'desc' },
     }),
+    tableExists(prisma, 'reports'),
   ]);
+
+  const lessonIds = lessons.map(lesson => lesson.id);
+
+  type CountRow = { lessonId: number; count: number };
+
+  let uploadCounts: CountRow[] = [];
+  if (lessonIds.length) {
+    uploadCounts = await prisma.$queryRaw<CountRow[]>(
+      Prisma.sql`SELECT lesson_id as lessonId, COUNT(*) as count FROM uploads WHERE lesson_id IN (${Prisma.join(
+        lessonIds
+      )}) GROUP BY lesson_id`
+    );
+  }
+
+  let reportCounts: CountRow[] = [];
+  if (reportTableExists && lessonIds.length) {
+    try {
+      reportCounts = await prisma.$queryRaw<CountRow[]>(
+        Prisma.sql`SELECT lesson_id as lessonId, COUNT(*) as count FROM reports WHERE lesson_id IN (${Prisma.join(
+          lessonIds
+        )}) GROUP BY lesson_id`
+      );
+    } catch (error) {
+      console.warn('Failed to load report counts:', error);
+    }
+  }
+
+  const uploadCountMap = new Map<number, number>(
+    uploadCounts.map(item => [item.lessonId, Number(item.count)])
+  );
+  const reportCountMap = new Map<number, number>(
+    reportCounts.map(item => [item.lessonId, Number(item.count)])
+  );
 
   return (
     <div className="min-h-screen bg-background p-8">
@@ -117,7 +153,11 @@ export default async function DashboardPage() {
                           查看/编辑教案
                         </Link>
                         <span className="mx-1 text-muted-foreground">·</span>
-                        <DeleteLessonButton lessonId={lesson.id} />
+                        <DeleteLessonButton
+                          lessonId={lesson.id}
+                          uploadsCount={uploadCountMap.get(lesson.id) ?? 0}
+                          reportsCount={reportCountMap.get(lesson.id) ?? 0}
+                        />
                       </div>
                     </CardContent>
                   </Card>

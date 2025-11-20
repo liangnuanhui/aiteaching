@@ -8,10 +8,12 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import { Trash2 } from 'lucide-react';
 
 interface Upload {
   id: number;
   filePath: string;
+  previewUrl?: string;
   recognizedName: string | null;
   ocrConfidence: number | null;
   workType: string | null;
@@ -26,10 +28,12 @@ interface Upload {
 interface AutoMatchedSectionProps {
   uploads: Upload[];
   onConfirmAll: () => Promise<void>;
+  onDelete?: (uploadId: number) => Promise<void>;
 }
 
-export function AutoMatchedSection({ uploads, onConfirmAll }: AutoMatchedSectionProps) {
+export function AutoMatchedSection({ uploads, onConfirmAll, onDelete }: AutoMatchedSectionProps) {
   const [isConfirming, setIsConfirming] = useState(false);
+  const [deleting, setDeleting] = useState<Record<number, boolean>>({});
 
   const handleConfirmAll = async () => {
     setIsConfirming(true);
@@ -66,11 +70,46 @@ export function AutoMatchedSection({ uploads, onConfirmAll }: AutoMatchedSection
         {uploads.map(upload => (
           <div key={upload.id} className="border rounded-lg overflow-hidden bg-white shadow-sm">
             <div className="relative w-full h-48 bg-gray-100">
-              <img
-                src={`/api/upload?key=${encodeURIComponent(upload.filePath)}`}
-                alt={`作品 ${upload.id}`}
-                className="w-full h-full object-contain"
-              />
+              {(() => {
+                const imageSrc =
+                  upload.previewUrl ||
+                  (upload.filePath
+                    ? `/api/upload?key=${encodeURIComponent(upload.filePath)}`
+                    : undefined);
+                if (!imageSrc) {
+                  return (
+                    <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
+                      无预览
+                    </div>
+                  );
+                }
+
+                return (
+                  <Image
+                    src={imageSrc}
+                    alt={`作品 ${upload.id}`}
+                    fill
+                    className="object-contain"
+                    sizes="(max-width: 1024px) 100vw, 33vw"
+                  />
+                );
+              })()}
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!window.confirm('确认删除该作品吗？删除后不可恢复。')) return;
+                    setDeleting(prev => ({ ...prev, [upload.id]: true }));
+                    void onDelete(upload.id).finally(() =>
+                      setDeleting(prev => ({ ...prev, [upload.id]: false }))
+                    );
+                  }}
+                  className="absolute right-2 top-2 rounded-full bg-white/80 p-1 text-gray-700 shadow hover:bg-white"
+                  disabled={deleting[upload.id]}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
             </div>
             <div className="p-3">
               <div className="flex items-center justify-between mb-2">

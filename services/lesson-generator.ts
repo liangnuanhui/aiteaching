@@ -1,6 +1,6 @@
 import { createPrismaClient } from '@/lib/db/client';
 import { ClassRepository, LessonCardRepository } from '@/repositories';
-import { callModelScopeChat } from '@/lib/modelscope/client';
+import { callModelScopeChat, getMessageContentText } from '@/lib/modelscope/client';
 
 interface GenerateLessonParams {
   teacherId: number;
@@ -145,7 +145,7 @@ export async function generateLessonForClass({ teacherId, classId, title }: Gene
 
     console.log('[generateLessonForClass] ModelScope LLM finished in ms', Date.now() - llmStart);
 
-    const content = result.choices[0]?.message.content || '';
+    const content = getMessageContentText(result.choices[0]?.message.content);
 
     const titleMatch = content.match(/```title\s*([\s\S]*?)```/);
     const extractedTitle = titleMatch ? titleMatch[1].trim() : '';

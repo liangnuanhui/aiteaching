@@ -8,6 +8,9 @@ import { createPrismaClient } from '@/lib/db/client';
 import { redirect } from 'next/navigation';
 import { ReportClient } from './report-client';
 
+// Use Node.js runtime for Prisma support
+export const runtime = 'nodejs';
+
 const prisma = createPrismaClient();
 
 export default async function ReportPage({ params }: { params: Promise<{ lessonId: string }> }) {

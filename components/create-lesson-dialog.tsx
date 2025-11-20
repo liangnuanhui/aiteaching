@@ -117,7 +117,10 @@ export function CreateLessonDialog({ classes }: CreateLessonDialogProps) {
                       return;
                     }
 
-                    const data = await response.json();
+                    const data = (await response.json()) as {
+                      data?: { id?: number };
+                      id?: number;
+                    };
                     const lessonId = data?.data?.id ?? data?.id;
 
                     setTimeout(() => {

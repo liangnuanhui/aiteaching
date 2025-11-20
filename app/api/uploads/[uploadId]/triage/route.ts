@@ -8,6 +8,9 @@ import { auth } from '@/lib/auth/config';
 import { createPrismaClient } from '@/lib/db/client';
 import { TriageService } from '@/lib/upload/triage-service';
 
+// Use Node.js runtime for Prisma support
+export const runtime = 'nodejs';
+
 const prisma = createPrismaClient();
 const triageService = new TriageService(prisma);
 
@@ -30,7 +33,10 @@ export async function PATCH(
     }
 
     // 2. Parse request body
-    const body = await request.json();
+    const body = (await request.json()) as {
+      status?: string;
+      studentId?: number;
+    };
     const { status, studentId } = body;
 
     if (!status) {

@@ -46,7 +46,20 @@ export default async function LessonDetailPage({ params, searchParams }: LessonP
       },
     },
     include: {
-      class: true,
+      class: {
+        include: {
+          students: {
+            select: {
+              id: true,
+              name: true,
+              nickname: true,
+            },
+            orderBy: {
+              name: 'asc',
+            },
+          },
+        },
+      },
     },
   });
 
@@ -54,11 +67,20 @@ export default async function LessonDetailPage({ params, searchParams }: LessonP
     redirect('/dashboard');
   }
 
+  const hasStudentWorks =
+    (await prisma.upload.count({
+      where: {
+        lessonId: lesson.id,
+      },
+    })) > 0;
+
   const uploadToken = getLessonUploadToken(lesson.id);
   const initialTabFromSearch = sp?.tab;
   let initialTab: 'edit' | 'h5' | 'works' = 'edit';
   if (initialTabFromSearch === 'h5' || initialTabFromSearch === 'works') {
     initialTab = initialTabFromSearch;
+  } else if (hasStudentWorks) {
+    initialTab = 'works';
   }
 
   const statusLabel =
@@ -141,6 +163,7 @@ export default async function LessonDetailPage({ params, searchParams }: LessonP
               className={lesson.class?.name}
               gradeLevel={lesson.class?.gradeLevel}
               uploadToken={uploadToken}
+              students={lesson.class?.students || []}
             />
           }
         />

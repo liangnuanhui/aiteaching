@@ -161,14 +161,31 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const fileBlob = await downloadFile(key);
-    if (!fileBlob) {
+    const fileBuffer = await downloadFile(key);
+    if (!fileBuffer) {
       return notFoundResponse(`File not found: ${key}`);
     }
 
-    return new NextResponse(await fileBlob.arrayBuffer(), {
+    const ext = key.split('.').pop()?.toLowerCase();
+    const contentTypes: Record<string, string> = {
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      gif: 'image/gif',
+      pdf: 'application/pdf',
+      txt: 'text/plain',
+      json: 'application/json',
+      html: 'text/html',
+      mp4: 'video/mp4',
+      mp3: 'audio/mpeg',
+    };
+
+    const contentType = contentTypes[ext || ''] || 'application/octet-stream';
+    const body = new Uint8Array(fileBuffer);
+
+    return new NextResponse(body, {
       headers: {
-        'Content-Type': fileBlob.type || 'application/octet-stream',
+        'Content-Type': contentType,
         'Cache-Control': 'public, max-age=31536000',
         'X-RateLimit-Limit': rateLimit.limit.toString(),
         'X-RateLimit-Remaining': rateLimit.remaining.toString(),

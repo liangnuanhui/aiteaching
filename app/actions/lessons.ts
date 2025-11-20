@@ -8,8 +8,10 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth/config';
 import { createPrismaClient } from '@/lib/db/client';
+import { deleteFile } from '@/lib/storage';
+import { tableExists } from '@/lib/db/utils';
 import { ClassRepository, LessonCardRepository } from '@/repositories';
-import { callModelScopeChat } from '@/lib/modelscope/client';
+import { callModelScopeChat, getMessageContentText } from '@/lib/modelscope/client';
 
 /**
  * Create a new lesson card under a class owned by the current user
@@ -181,7 +183,7 @@ export async function createLesson(formData: FormData) {
 
     console.log('[createLesson] ModelScope LLM finished in ms', Date.now() - llmStart);
 
-    const content = result.choices[0]?.message.content || '';
+    const content = getMessageContentText(result.choices[0]?.message.content);
 
     // Extract title
     const titleMatch = content.match(/```title\s*([\s\S]*?)```/);
@@ -496,9 +498,33 @@ export async function deleteLesson(formData: FormData) {
     throw new Error('Lesson not found or you do not have permission to delete it');
   }
 
-  await prisma.lessonCard.delete({
-    where: { id: lesson.id },
+  const uploads = await prisma.upload.findMany({
+    where: { lessonId: lesson.id },
+    select: {
+      filePath: true,
+    },
   });
+
+  const reportTableExists = await tableExists(prisma, 'reports');
+
+  await prisma.$transaction(async tx => {
+    if (reportTableExists) {
+      await tx.report.deleteMany({ where: { lessonId: lesson.id } });
+    }
+    await tx.upload.deleteMany({ where: { lessonId: lesson.id } });
+    await tx.lessonCard.delete({ where: { id: lesson.id } });
+  });
+
+  await Promise.all(
+    uploads.map(async upload => {
+      if (!upload.filePath) return;
+      try {
+        await deleteFile(upload.filePath);
+      } catch (error) {
+        console.error(`Failed to delete file ${upload.filePath}:`, error);
+      }
+    })
+  );
 
   redirect('/dashboard');
 }

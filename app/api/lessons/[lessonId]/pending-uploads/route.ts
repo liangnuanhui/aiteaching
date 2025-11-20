@@ -8,6 +8,9 @@ import { auth } from '@/lib/auth/config';
 import { createPrismaClient } from '@/lib/db/client';
 import { TriageService } from '@/lib/upload/triage-service';
 
+// Use Node.js runtime for Prisma support
+export const runtime = 'nodejs';
+
 const prisma = createPrismaClient();
 const triageService = new TriageService(prisma);
 

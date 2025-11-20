@@ -28,6 +28,18 @@ interface UploadedFile {
   name: string;
 }
 
+interface StudentWorksCountResponse {
+  count?: number;
+}
+
+interface LessonUploadResponse {
+  key: string;
+  url: string;
+  size: number;
+  contentType?: string;
+  name?: string;
+}
+
 export function H5Uploader({ lessonId, uploadToken }: H5UploaderProps) {
   const [files, setFiles] = useState<FileList | null>(null);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
@@ -45,7 +57,7 @@ export function H5Uploader({ lessonId, uploadToken }: H5UploaderProps) {
           `/api/student-works?lessonId=${lessonId}&token=${encodeURIComponent(uploadToken)}`
         );
         if (!res.ok) return;
-        const data = await res.json();
+        const data = (await res.json()) as StudentWorksCountResponse;
         if (!cancelled && typeof data.count === 'number') {
           setTotalCount(data.count);
         }
@@ -106,7 +118,7 @@ export function H5Uploader({ lessonId, uploadToken }: H5UploaderProps) {
           throw new Error('上传失败');
         }
 
-        const data = await res.json();
+        const data = (await res.json()) as LessonUploadResponse;
         uploadResults.push({
           key: data.key,
           url: data.url,
@@ -138,7 +150,7 @@ export function H5Uploader({ lessonId, uploadToken }: H5UploaderProps) {
           `/api/student-works?lessonId=${lessonId}&token=${encodeURIComponent(uploadToken)}`
         );
         if (countRes.ok) {
-          const data = await countRes.json();
+          const data = (await countRes.json()) as StudentWorksCountResponse;
           setTotalCount(typeof data.count === 'number' ? data.count : null);
         }
       } catch (err) {

@@ -152,6 +152,22 @@ export async function GET(request: NextRequest) {
       where: {
         lessonId,
       },
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            nickname: true,
+          },
+        },
+        suggestedStudent: {
+          select: {
+            id: true,
+            name: true,
+            nickname: true,
+          },
+        },
+      },
       orderBy: {
         uploadedAt: 'desc',
       },
@@ -162,10 +178,57 @@ export async function GET(request: NextRequest) {
       url: storage ? storage.getUrl(work.filePath) : '',
     }));
 
+    const stats = data.reduce(
+      (acc, work) => {
+        acc.total += 1;
+        switch (work.triageStatus) {
+          case 'auto_matched':
+            acc.autoMatched += 1;
+            break;
+          case 'pending_confirmation':
+            acc.pendingConfirmation += 1;
+            break;
+          case 'pending_manual':
+            acc.pendingManual += 1;
+            break;
+          case 'confirmed':
+            acc.confirmed += 1;
+            break;
+          case 'pending':
+            acc.pending += 1;
+            break;
+          case 'processing':
+            acc.processing += 1;
+            break;
+          case 'failed':
+            acc.failed += 1;
+            break;
+          default:
+            break;
+        }
+        return acc;
+      },
+      {
+        total: 0,
+        confirmed: 0,
+        autoMatched: 0,
+        pendingConfirmation: 0,
+        pendingManual: 0,
+        pending: 0,
+        processing: 0,
+        failed: 0,
+      }
+    );
+
     return NextResponse.json({
       success: true,
       count: data.length,
       data,
+      stats: {
+        ...stats,
+        toArchive: stats.autoMatched + stats.pendingConfirmation + stats.pendingManual,
+        inProgress: stats.pending + stats.processing,
+      },
     });
   } catch (error) {
     console.error('获取学生作品失败:', error);

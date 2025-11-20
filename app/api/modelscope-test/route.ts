@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { withApiHandler, withMiddleware } from '@/lib/api';
-import { callModelScopeChat } from '@/lib/modelscope/client';
+import { callModelScopeChat, getMessageContentText } from '@/lib/modelscope/client';
 
 export const runtime = 'nodejs';
 
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
         }
       );
 
-      const content = result.choices[0]?.message.content ?? '';
+      const content = getMessageContentText(result.choices[0]?.message.content);
 
       return {
         ok: true,

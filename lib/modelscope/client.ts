@@ -106,3 +106,28 @@ export async function callModelScopeChat(
   const data = (await response.json()) as ChatCompletionResponse;
   return data;
 }
+
+/**
+ * Normalize assistant message content to plain text for downstream parsing.
+ */
+export function getMessageContentText(content: MessageContent | undefined): string {
+  if (!content) {
+    return '';
+  }
+
+  if (typeof content === 'string') {
+    return content;
+  }
+
+  return content
+    .map(part => {
+      if (part.type === 'text') {
+        return part.text ?? '';
+      }
+      if (part.type === 'image_url') {
+        return part.image_url?.url ?? '';
+      }
+      return '';
+    })
+    .join('\n');
+}

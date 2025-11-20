@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import { AutoMatchedSection } from '@/components/archive/auto-matched-section';
 import { PendingConfirmationSection } from '@/components/archive/pending-confirmation-section';
@@ -20,6 +20,7 @@ interface Student {
 interface Upload {
   id: number;
   filePath: string;
+  previewUrl?: string;
   recognizedName: string | null;
   ocrConfidence: number | null;
   workType: string | null;
@@ -44,7 +45,7 @@ interface ArchiveClientProps {
 
 export function ArchiveClient({ lessonId, uploads: initialUploads, students }: ArchiveClientProps) {
   const router = useRouter();
-  const [uploads, setUploads] = useState(initialUploads);
+  const uploads = initialUploads;
 
   const handleConfirmAll = async () => {
     try {
@@ -65,7 +66,7 @@ export function ArchiveClient({ lessonId, uploads: initialUploads, students }: A
         throw new Error('Failed to confirm uploads');
       }
 
-      const result = await response.json();
+      const result = (await response.json()) as { success: number; failed: number };
       alert(`成功归档 ${result.success} 个作品`);
 
       // Refresh page
@@ -126,14 +127,41 @@ export function ArchiveClient({ lessonId, uploads: initialUploads, students }: A
     }
   };
 
+  const handleDeleteUpload = async (uploadId: number) => {
+    try {
+      const response = await fetch(`/api/uploads/${uploadId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error || '删除失败');
+      }
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to delete upload:', error);
+      alert(error instanceof Error ? error.message : '删除失败，请重试');
+    }
+  };
+
   const hasAnyPending =
     uploads.autoMatched.length > 0 ||
     uploads.pendingConfirmation.length > 0 ||
     uploads.pendingManual.length > 0;
+  const hasFailures = uploads.failed.length > 0;
+  const hasProcessing = uploads.pending.length > 0 || uploads.processing.length > 0;
+  const totalUploads =
+    uploads.autoMatched.length +
+    uploads.pendingConfirmation.length +
+    uploads.pendingManual.length +
+    uploads.confirmed.length +
+    uploads.pending.length +
+    uploads.processing.length +
+    uploads.failed.length;
+  const showSuccess = !hasAnyPending && !hasFailures && !hasProcessing && totalUploads > 0;
 
   return (
     <>
-      {!hasAnyPending && (
+      {showSuccess && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center mb-8">
           <div className="text-2xl font-semibold text-green-900 mb-2">✅ 归档完成！</div>
           <div className="text-green-700 mb-4">所有作品已成功归档到对应学生</div>
@@ -146,18 +174,24 @@ export function ArchiveClient({ lessonId, uploads: initialUploads, students }: A
         </div>
       )}
 
-      <AutoMatchedSection uploads={uploads.autoMatched} onConfirmAll={handleConfirmAll} />
+      <AutoMatchedSection
+        uploads={uploads.autoMatched}
+        onConfirmAll={handleConfirmAll}
+        onDelete={handleDeleteUpload}
+      />
 
       <PendingConfirmationSection
         uploads={uploads.pendingConfirmation}
         students={students}
         onConfirm={handleConfirmSuggestion}
+        onDelete={handleDeleteUpload}
       />
 
       <PendingManualSection
         uploads={uploads.pendingManual}
         students={students}
         onAssign={handleManualAssign}
+        onDelete={handleDeleteUpload}
       />
 
       {/* Refresh Button */}

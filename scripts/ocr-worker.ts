@@ -16,13 +16,35 @@
  *   pnpm worker:once      - Single run mode (process all pending, then exit)
  */
 
+import '@/scripts/load-env';
 import { createPrismaClient } from '@/lib/db/client';
 import { getQwenVLClient } from '@/lib/ocr/qwen-vl-client';
 import { TriageService } from '@/lib/upload/triage-service';
+import path from 'path';
 
 // Environment detection
 const NODE_ENV = process.env.NODE_ENV || 'production';
 const IS_DEV = NODE_ENV === 'development';
+
+/**
+ * Convert relative file path to absolute path
+ * Database stores: "lesson_21/xxx.jpeg"
+ * Actual file location: "uploads/lesson_21/xxx.jpeg"
+ */
+function resolveFilePath(filePath: string): string {
+  // If already absolute path, return as is
+  if (path.isAbsolute(filePath)) {
+    return filePath;
+  }
+
+  // If path starts with "uploads/", it's already correct relative path
+  if (filePath.startsWith('uploads/')) {
+    return path.join(process.cwd(), filePath);
+  }
+
+  // Otherwise, prepend "uploads/" directory
+  return path.join(process.cwd(), 'uploads', filePath);
+}
 
 // Constants (adjusted based on environment)
 const MAX_RETRIES = 3;
@@ -94,9 +116,23 @@ async function processPendingUpload(): Promise<boolean> {
       data: { triageStatus: 'processing' },
     });
 
-    // 3. Perform OCR recognition
+    // 3. Resolve and validate file path
+    const fullFilePath = resolveFilePath(upload.filePath);
+
+    // Check if file exists before attempting OCR
+    const fs = await import('fs');
+    if (!fs.existsSync(fullFilePath)) {
+      throw new Error(
+        `File not found.\n` +
+          `  Database path: ${upload.filePath}\n` +
+          `  Resolved path: ${fullFilePath}\n` +
+          `  Please check if the file exists and the path is correct.`
+      );
+    }
+
+    // 4. Perform OCR recognition
     log.worker(`Running OCR on ${upload.filePath.split('/').pop()}...`);
-    const ocrResult = await ocrClient.recognizeImage(upload.filePath);
+    const ocrResult = await ocrClient.recognizeImage(fullFilePath);
 
     log.worker(`Recognized: "${ocrResult.studentName}" (${ocrResult.workType})`);
 
@@ -120,10 +156,12 @@ async function processPendingUpload(): Promise<boolean> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`Failed to process upload #${uploadId}: ${errorMessage}`);
 
-    // Update retry count and error message
+    // Determine if error is retryable
+    const isRetryable = shouldRetry(errorMessage);
     const newRetryCount = upload.retryCount + 1;
-    const newStatus = newRetryCount >= MAX_RETRIES ? 'failed' : 'pending';
+    const newStatus = !isRetryable || newRetryCount >= MAX_RETRIES ? 'failed' : 'pending';
 
+    // Update retry count and error message
     await prisma.upload.update({
       where: { id: uploadId },
       data: {
@@ -134,7 +172,11 @@ async function processPendingUpload(): Promise<boolean> {
     });
 
     if (newStatus === 'failed') {
-      log.warning(`Upload #${uploadId} marked as failed after ${MAX_RETRIES} retries`);
+      if (!isRetryable) {
+        log.warning(`Upload #${uploadId} marked as failed (non-retryable error)`);
+      } else {
+        log.warning(`Upload #${uploadId} marked as failed after ${MAX_RETRIES} retries`);
+      }
     }
 
     // If it's a rate limit error, wait before continuing
@@ -145,6 +187,41 @@ async function processPendingUpload(): Promise<boolean> {
 
     return true; // Continue processing other uploads
   }
+}
+
+/**
+ * Determine if an error should trigger a retry
+ */
+function shouldRetry(errorMessage: string): boolean {
+  // Don't retry if file doesn't exist (permanent error)
+  if (errorMessage.includes('File not found') || errorMessage.includes('ENOENT')) {
+    return false;
+  }
+
+  // Don't retry if it's an authentication error
+  if (
+    errorMessage.includes('401') ||
+    errorMessage.includes('403') ||
+    errorMessage.includes('Invalid API key')
+  ) {
+    return false;
+  }
+
+  // Retry for network errors, timeouts, rate limits
+  if (
+    errorMessage.includes('timeout') ||
+    errorMessage.includes('rate limit') ||
+    errorMessage.includes('ECONNREFUSED') ||
+    errorMessage.includes('ETIMEDOUT') ||
+    errorMessage.includes('500') ||
+    errorMessage.includes('502') ||
+    errorMessage.includes('503')
+  ) {
+    return true;
+  }
+
+  // Default: retry for unknown errors
+  return true;
 }
 
 /**
@@ -176,10 +253,18 @@ async function mainLoop(): Promise<void> {
 
   log.info('Press Ctrl+C to stop\n');
 
+  // Print stats every 10 iterations
+  let iterationCount = 0;
+
   while (isRunning) {
     const hasMore = await processPendingUpload();
 
     if (!hasMore) {
+      // Print summary stats
+      if (processedCount > 0 || errorCount > 0) {
+        log.info(`📊 Session stats: ${processedCount} successful, ${errorCount} errors`);
+      }
+
       // No tasks, wait before checking again
       const waitTime = IDLE_DELAY_MS / 1000;
       if (IS_DEV) {
@@ -188,6 +273,12 @@ async function mainLoop(): Promise<void> {
         log.info(`Idle, waiting ${waitTime}s...`);
       }
       await sleep(IDLE_DELAY_MS);
+    } else {
+      iterationCount++;
+      // Print stats every 10 uploads
+      if (iterationCount % 10 === 0) {
+        log.info(`📊 Progress: ${processedCount} successful, ${errorCount} errors`);
+      }
     }
   }
 }

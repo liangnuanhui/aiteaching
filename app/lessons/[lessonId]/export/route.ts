@@ -5,14 +5,20 @@ import { Document, HeadingLevel, Packer, Paragraph } from 'docx';
 
 export const runtime = 'nodejs';
 
-export async function GET(_request: NextRequest, { params }: { params: { lessonId: string } }) {
+type DocHeadingLevel = (typeof HeadingLevel)[keyof typeof HeadingLevel];
+
+export async function GET(
+  _request: NextRequest,
+  context: { params: Promise<{ lessonId: string }> }
+) {
   const session = await auth();
 
   if (!session?.user?.id) {
     return new NextResponse('Unauthorized', { status: 401 });
   }
 
-  const lessonId = Number(params.lessonId ?? '');
+  const { lessonId: lessonIdParam } = await context.params;
+  const lessonId = Number(lessonIdParam ?? '');
   if (!lessonId || !Number.isFinite(lessonId)) {
     return new NextResponse('Invalid lesson id', { status: 400 });
   }
@@ -72,10 +78,9 @@ export async function GET(_request: NextRequest, { params }: { params: { lessonI
       const level = headingMatch[1].length;
       const text = stripInlineMarkdown(headingMatch[2]);
 
-      let headingLevel: HeadingLevel;
+      let headingLevel: DocHeadingLevel = HeadingLevel.HEADING_3;
       if (level === 1) headingLevel = HeadingLevel.HEADING_1;
       else if (level === 2) headingLevel = HeadingLevel.HEADING_2;
-      else headingLevel = HeadingLevel.HEADING_3;
 
       paragraphs.push(
         new Paragraph({
@@ -125,11 +130,12 @@ export async function GET(_request: NextRequest, { params }: { params: { lessonI
   });
 
   const buffer = await Packer.toBuffer(doc);
+  const fileData = new Uint8Array(buffer);
 
   const filename = `${headerText}.docx`;
   const encodedFilename = encodeURIComponent(filename);
 
-  return new NextResponse(buffer, {
+  return new NextResponse(fileData, {
     status: 200,
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
