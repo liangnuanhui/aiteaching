@@ -19,10 +19,10 @@ import { checkUploadRateLimit, checkRateLimit } from '@/lib/rate-limiter';
 import { createSignedDownloadUrl, verifySignedUrl } from '@/lib/signed-url';
 import { getClientIdentifier, getAdjustedRateLimit } from '@/lib/utils/client-identifier';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
-// Max file size (10MB)
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+// Max file size (100MB)
+const MAX_FILE_SIZE = 100 * 1024 * 1024;
 
 // Signed URL expiration (1 hour)
 const URL_EXPIRATION_SECONDS = 3600;
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
       const timestamp = Date.now();
       const filename = `${timestamp}-${file.name}`;
-      const key = `uploads/${filename}`;
+      const key = `h5/${filename}`;
 
       const stored = await uploadFile(key, file, {
         originalName: file.name,
@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
         size: stored.size,
         uploaded: stored.uploadedAt,
         url: signedUrl,
+        storageUrl: stored.url,
         expiresIn: URL_EXPIRATION_SECONDS,
         contentType: file.type || 'application/octet-stream',
         name: file.name,

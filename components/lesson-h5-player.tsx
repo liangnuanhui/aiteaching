@@ -35,6 +35,14 @@ type RawSlide = {
   mediaType?: string;
 };
 
+interface ParsedVideoUrl {
+  platform: string;
+  embedUrl: string;
+  isSupported: boolean;
+  needsIframe: boolean;
+  message?: string;
+}
+
 function normalizeSlide(raw: unknown): Slide {
   if (!raw || typeof raw !== 'object') return {};
 
@@ -42,16 +50,186 @@ function normalizeSlide(raw: unknown): Slide {
 
   const inferredType =
     s.type || (s.url ? (s.duration || s.mediaType === 'video' ? 'video' : 'image') : 'text');
+  const normalizedUrl = getPersistentMediaUrl(s.url);
 
   return {
     type: inferredType,
     title: s.title,
     content: s.content,
     subtitle: s.subtitle,
-    url: s.url,
+    url: normalizedUrl ?? s.url,
     description: s.description,
     instruction: s.instruction,
   };
+}
+
+/**
+ * 判断description是否为本地上传的文件名格式
+ * 格式: 时间戳-原始文件名.扩展名 (如: 1763704682242-xxx.mp4)
+ */
+function isLocalUploadFilename(description: string): boolean {
+  if (!description) return false;
+  // 匹配以13位时间戳开头,后跟连字符和文件名的格式
+  return /^\d{13}-.*\.(jpg|jpeg|png|gif|webp|mp4|webm|ogg|mov|avi|flv|pdf)$/i.test(description);
+}
+
+function getPersistentMediaUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+
+  // Already a local storage URL or remote CDN
+  if (!url.includes('/api/upload')) {
+    return url;
+  }
+
+  try {
+    const parsed = new URL(
+      url,
+      typeof window !== 'undefined' ? window.location.origin : 'http://localhost'
+    );
+    if (parsed.pathname === '/api/upload' && parsed.searchParams.has('key')) {
+      const key = parsed.searchParams.get('key');
+      if (key) {
+        return `/api/storage/local/${key}`;
+      }
+    }
+  } catch {
+    // Fallback for cases like "/api/upload?key=xxx"
+    const match = url.match(/key=([^&]+)/);
+    if (match && match[1]) {
+      return `/api/storage/local/${decodeURIComponent(match[1])}`;
+    }
+  }
+
+  return url;
+}
+
+function parseVideoUrl(url?: string): ParsedVideoUrl {
+  const normalized = getPersistentMediaUrl(url);
+  if (!normalized) {
+    return { platform: 'unknown', embedUrl: '', isSupported: false, needsIframe: false };
+  }
+
+  const cleanedUrl = normalized.trim();
+
+  const biliMatch = cleanedUrl.match(/bilibili\.com\/video\/(BV[\w]+)/i);
+  if (biliMatch) {
+    return {
+      platform: 'bilibili',
+      embedUrl: `https://player.bilibili.com/player.html?bvid=${biliMatch[1]}&high_quality=1&autoplay=0`,
+      isSupported: true,
+      needsIframe: true,
+    };
+  }
+
+  const ytMatch = cleanedUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  if (ytMatch) {
+    return {
+      platform: 'youtube',
+      embedUrl: `https://www.youtube.com/embed/${ytMatch[1]}`,
+      isSupported: true,
+      needsIframe: true,
+    };
+  }
+
+  const youkuMatch = cleanedUrl.match(/youku\.com\/.*\/id_([a-zA-Z0-9=]+)/);
+  if (youkuMatch) {
+    return {
+      platform: 'youku',
+      embedUrl: `https://player.youku.com/embed/${youkuMatch[1]}`,
+      isSupported: true,
+      needsIframe: true,
+    };
+  }
+
+  const qqMatch = cleanedUrl.match(/v\.qq\.com\/.*\/([a-zA-Z0-9]+)\.html/);
+  if (qqMatch) {
+    return {
+      platform: 'tencent',
+      embedUrl: `https://v.qq.com/txp/iframe/player.html?vid=${qqMatch[1]}`,
+      isSupported: true,
+      needsIframe: true,
+    };
+  }
+
+  if (cleanedUrl.includes('douyin.com')) {
+    return {
+      platform: 'douyin',
+      embedUrl: cleanedUrl,
+      isSupported: false,
+      needsIframe: false,
+      message: '抖音视频暂未开放嵌入，建议下载后再上传。',
+    };
+  }
+
+  if (cleanedUrl.includes('xiaohongshu.com')) {
+    return {
+      platform: 'xiaohongshu',
+      embedUrl: cleanedUrl,
+      isSupported: false,
+      needsIframe: false,
+      message: '小红书视频暂未开放嵌入，建议下载后再上传。',
+    };
+  }
+
+  if (cleanedUrl.match(/\.(mp4|webm|ogg|mov|avi|flv)(\?.*)?$/i)) {
+    return {
+      platform: 'direct',
+      embedUrl: cleanedUrl,
+      isSupported: true,
+      needsIframe: false,
+    };
+  }
+
+  return {
+    platform: 'unknown',
+    embedUrl: cleanedUrl,
+    isSupported: false,
+    needsIframe: false,
+    message: '暂不支持该视频链接，请使用 B站 / YouTube / 优酷 / 腾讯视频 或上传文件。',
+  };
+}
+
+function getEmbeddedVideoUrl(url?: string): string | null {
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+
+    // YouTube (watch, share links)
+    if (host.includes('youtube.com') || host === 'youtu.be') {
+      let videoId = '';
+      if (host === 'youtu.be') {
+        videoId = parsed.pathname.replace('/', '');
+      } else {
+        videoId = parsed.searchParams.get('v') || '';
+      }
+      if (videoId) {
+        return `https://www.youtube.com/embed/${videoId}`;
+      }
+    }
+
+    // Bilibili BV 号
+    if (host.includes('bilibili.com')) {
+      const match = url.match(/BV[\w]+/i);
+      if (match) {
+        return `https://player.bilibili.com/player.html?bvid=${match[0]}&high_quality=1&autoplay=0`;
+      }
+    }
+
+    // Youku（基于 id_XXXX.html）
+    if (host.includes('youku.com')) {
+      const match = url.match(/id_([A-Za-z0-9=]+)/);
+      if (match && match[1]) {
+        return `https://player.youku.com/embed/${match[1]}`;
+      }
+    }
+  } catch {
+    // 非法 URL（可能是相对路径），fallback 交给原 video 标签处理
+    return null;
+  }
+
+  return null;
 }
 
 export function parseSlides(h5Json: string | null): Slide[] {
@@ -122,6 +300,8 @@ export function LessonH5Player({ h5Json, showPreviewGrid = true }: LessonH5Playe
   }
 
   const current = slides[index] || {};
+  const mediaUrl = getPersistentMediaUrl(current.url);
+  const videoInfo = current.type === 'video' ? parseVideoUrl(mediaUrl) : null;
 
   return (
     <>
@@ -185,28 +365,61 @@ export function LessonH5Player({ h5Json, showPreviewGrid = true }: LessonH5Playe
                 <div className="mb-4 text-base text-muted-foreground">{current.subtitle}</div>
               )}
 
-              {current.type === 'image' && current.url ? (
+              {current.type === 'image' && mediaUrl ? (
                 <div className="mt-4">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={current.url}
+                    src={mediaUrl}
                     alt={current.description || current.title || '课件图片'}
                     className="mx-auto max-h-[60vh] rounded-md border border-border object-contain"
                   />
-                  {current.description && (
+                  {/* 对于本地上传的图片(文件名格式),不显示description */}
+                  {current.description && !isLocalUploadFilename(current.description) && (
                     <div className="mt-3 text-sm text-muted-foreground">{current.description}</div>
                   )}
                 </div>
-              ) : current.type === 'video' && current.url ? (
-                <div className="mt-4 flex justify-center">
-                  <video
-                    src={current.url}
-                    controls
-                    className="max-h-[60vh] w-full max-w-3xl rounded-md border border-border bg-black"
-                  />
-                  {current.description && (
-                    <div className="mt-3 text-sm text-muted-foreground">{current.description}</div>
-                  )}
+              ) : current.type === 'video' && mediaUrl ? (
+                <div className="mt-4">
+                  <div className="flex justify-center">
+                    {videoInfo?.isSupported ? (
+                      videoInfo.needsIframe ? (
+                        <div className="w-full" style={{ width: 'min(90vw, 1400px)' }}>
+                          <div
+                            className="relative w-full overflow-hidden rounded-lg border border-border bg-black"
+                            style={{ aspectRatio: '16 / 9' }}
+                          >
+                            <iframe
+                              src={videoInfo.embedUrl}
+                              title={current.title || '嵌入视频'}
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                              className="absolute inset-0 h-full w-full"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <video
+                          src={videoInfo.embedUrl}
+                          controls
+                          className="w-full rounded-lg border border-border bg-black"
+                          style={{ width: 'min(90vw, 1200px)', maxHeight: '80vh' }}
+                        />
+                      )
+                    ) : (
+                      <div className="text-center text-sm text-destructive">
+                        {videoInfo?.message ||
+                          '视频链接暂不支持嵌入播放，请改用支持的平台或上传文件。'}
+                      </div>
+                    )}
+                  </div>
+                  {/* 对于本地上传的视频(文件名格式),不显示description */}
+                  {current.description &&
+                    videoInfo?.isSupported &&
+                    !isLocalUploadFilename(current.description) && (
+                      <div className="mt-3 text-center text-sm text-muted-foreground">
+                        {current.description}
+                      </div>
+                    )}
                 </div>
               ) : (
                 <div className="text-left text-base">

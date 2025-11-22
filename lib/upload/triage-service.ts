@@ -11,6 +11,19 @@ import type { PrismaClient } from '@prisma/client';
 import type { OCRResult } from '@/lib/ocr/qwen-vl-client';
 import { fuzzyMatchStudent, calculateConfidence, type Student } from './fuzzy-match';
 
+interface EducationalInsights {
+  observations: string;
+  suggestions: string;
+  ageAppropriateness: string;
+  creativeElements: string;
+}
+
+interface ExtendedOCRResult extends OCRResult {
+  modelConsensus?: number;
+  modelCount?: number;
+  educationalInsights?: EducationalInsights;
+}
+
 /**
  * Triage status enum
  */
@@ -125,7 +138,7 @@ export class TriageService {
    */
   async updateUploadWithTriageResult(
     uploadId: number,
-    ocrResult: OCRResult,
+    ocrResult: ExtendedOCRResult,
     triageResult: TriageResult
   ): Promise<void> {
     const now = Math.floor(Date.now() / 1000);
@@ -144,6 +157,14 @@ export class TriageService {
         workKeywords: JSON.stringify(ocrResult.keywords),
         workEmotions: JSON.stringify(ocrResult.emotions),
         contentExtractedAt: now,
+
+        // Multi-model metadata
+        modelConsensus: ocrResult.modelConsensus,
+        modelCount: ocrResult.modelCount,
+        educationalObservations: ocrResult.educationalInsights?.observations,
+        teachingSuggestions: ocrResult.educationalInsights?.suggestions,
+        ageAppropriateness: ocrResult.educationalInsights?.ageAppropriateness,
+        creativeElements: ocrResult.educationalInsights?.creativeElements,
 
         // Triage result
         triageStatus: triageResult.status,

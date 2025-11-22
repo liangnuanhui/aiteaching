@@ -189,7 +189,7 @@ export function H5Uploader({ lessonId, uploadToken }: H5UploaderProps) {
             <UploadIcon className="h-10 w-10 text-muted-foreground" />
             <span>点击选择或拖拽作品照片到此处</span>
             <span className="text-xs text-muted-foreground/80">
-              支持 JPG、PNG、PDF，每张不超过 10MB
+              支持 JPG、PNG、PDF，单个文件不超过 10MB
             </span>
           </button>
         ) : (

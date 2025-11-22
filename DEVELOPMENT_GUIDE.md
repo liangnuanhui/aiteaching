@@ -324,6 +324,18 @@ cp .env.example .env.local
 nano .env.local
 ```
 
+#### 多模型分析配置
+
+- **必需**：`MODELSCOPE_API_KEY`（Qwen30B/235B 主力模型）
+- **可选增强**：
+  - GPT-4 Vision → 配置 `OPENAI_API_KEY` 并设置 `ENABLE_GPT4_VISION=true`
+  - Claude 3.5 Vision → 配置 `ANTHROPIC_API_KEY` + `ENABLE_CLAUDE_VISION=true`
+  - 豆包视觉 → 配置 `DOUBAO_API_KEY` + `ENABLE_DOUBAO_VL=true`
+- **权重调整**：`QWEN30B_WEIGHT`、`QWEN235B_WEIGHT` 等控制融合占比
+- **超时**：`SINGLE_MODEL_TIMEOUT`、`MULTI_MODEL_TIMEOUT`
+
+> `modelConsensus`（0-1）越高代表多模型理解一致。一致性 < 0.6 时建议在 UI 中提示“需人工复核”。
+
 ### 4. TypeScript 路径别名问题
 
 **问题：** `@/lib/...` 导入失败

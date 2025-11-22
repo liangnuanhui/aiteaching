@@ -101,17 +101,36 @@ export function LessonH5Editor({ lessonId, initialH5Json }: LessonH5EditorProps)
       });
 
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || '上传失败');
+        const raw = await res.text();
+        let friendlyMessage = '上传失败，请稍后重试。';
+
+        if (raw) {
+          try {
+            const data = JSON.parse(raw);
+            const errorType = data?.error?.type;
+            const errorMessage = data?.error?.message || data?.message;
+
+            if (errorType === 'FILE_SIZE_EXCEEDED') {
+              friendlyMessage = '文件超过 100MB，无法上传，请压缩后再试。';
+            } else if (typeof errorMessage === 'string' && errorMessage.trim().length > 0) {
+              friendlyMessage = errorMessage;
+            }
+          } catch {
+            friendlyMessage = raw;
+          }
+        }
+
+        throw new Error(friendlyMessage);
       }
 
       const data = (await res.json()) as {
         url: string;
+        storageUrl?: string;
         contentType?: string;
         name?: string;
       };
 
-      const uploadedUrl = data.url;
+      const uploadedUrl = data.storageUrl || data.url;
       const contentType = data.contentType || file.type;
 
       let inferredType: 'image' | 'video' | undefined;
@@ -310,8 +329,11 @@ export function LessonH5Editor({ lessonId, initialH5Json }: LessonH5EditorProps)
                           })
                         }
                         className="h-8 text-[11px]"
-                        placeholder="可粘贴外部链接，或使用下方上传自动填充"
+                        placeholder="可粘贴外部链接（支持 B站 / YouTube / 优酷 / 腾讯视频），或使用下方上传自动填充"
                       />
+                      <p className="text-[10px] text-muted-foreground">
+                        直接粘贴视频网页链接即可自动播放，无需下载原文件。
+                      </p>
                     </div>
 
                     <div className="space-y-1">

@@ -197,6 +197,14 @@ model Upload {
   workEmotions       String?    @map("work_emotions")
   contentExtractedAt Int?       @map("content_extracted_at")
 
+  // Multi-model metadata
+  modelConsensus          Float?  @map("model_consensus")
+  modelCount              Int?    @map("model_count")
+  educationalObservations String? @map("educational_observations")
+  teachingSuggestions     String? @map("teaching_suggestions")
+  ageAppropriateness      String? @map("age_appropriateness")
+  creativeElements        String? @map("creative_elements")
+
   // Triage state
   triageStatus       String     @default("pending") @map("triage_status")
 

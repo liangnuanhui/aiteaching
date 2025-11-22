@@ -18,7 +18,8 @@
 
 import '@/scripts/load-env';
 import { createPrismaClient } from '@/lib/db/client';
-import { getQwenVLClient } from '@/lib/ocr/qwen-vl-client';
+import { getMultiModelClient, type FusedResult } from '@/lib/ocr/multi-model-client';
+import { getQwenVLClient, type OCRResult } from '@/lib/ocr/qwen-vl-client';
 import { TriageService } from '@/lib/upload/triage-service';
 import path from 'path';
 
@@ -44,6 +45,26 @@ function resolveFilePath(filePath: string): string {
 
   // Otherwise, prepend "uploads/" directory
   return path.join(process.cwd(), 'uploads', filePath);
+}
+
+type ExtendedOCRResult = OCRResult & {
+  modelConsensus?: number;
+  modelCount?: number;
+  educationalInsights?: FusedResult['educationalInsights'];
+};
+
+function fusedResultToOcrResult(fused: FusedResult): ExtendedOCRResult {
+  return {
+    studentName: fused.studentName,
+    workType: fused.workType,
+    description: fused.description,
+    textContent: fused.textContent,
+    keywords: fused.keywords,
+    emotions: fused.emotions,
+    modelConsensus: fused.modelConsensus,
+    modelCount: fused.detailedResults.length,
+    educationalInsights: fused.educationalInsights,
+  };
 }
 
 // Constants (adjusted based on environment)
@@ -84,6 +105,7 @@ const log = {
  */
 const prisma = createPrismaClient();
 const ocrClient = getQwenVLClient();
+const multiModelClient = getMultiModelClient();
 const triageService = new TriageService(prisma);
 
 /**
@@ -130,9 +152,24 @@ async function processPendingUpload(): Promise<boolean> {
       );
     }
 
-    // 4. Perform OCR recognition
+    // 4. Perform OCR recognition (multi-model + fallback)
     log.worker(`Running OCR on ${upload.filePath.split('/').pop()}...`);
-    const ocrResult = await ocrClient.recognizeImage(fullFilePath);
+
+    let fusedResult: FusedResult | null = null;
+    let ocrResult: ExtendedOCRResult;
+
+    try {
+      fusedResult = await multiModelClient.analyzeImageMultiModel(fullFilePath);
+      log.worker(
+        `Analyzed by ${fusedResult.detailedResults.length} models ` +
+          `(consensus: ${(fusedResult.modelConsensus * 100).toFixed(0)}%)`
+      );
+      ocrResult = fusedResultToOcrResult(fusedResult);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.warning(`Multi-model analysis failed, falling back to single model. Reason: ${message}`);
+      ocrResult = await ocrClient.recognizeImage(fullFilePath);
+    }
 
     log.worker(`Recognized: "${ocrResult.studentName}" (${ocrResult.workType})`);
 

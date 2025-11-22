@@ -57,9 +57,31 @@ const envSchema = z
       .transform(val => val === 'true'),
     SLOW_QUERY_THRESHOLD_MS: z.coerce.number().min(100).max(10000).default(1000),
 
-    // ModelScope / 魔搭社区 API
+    // ModelScope / 多模型分析配置
     MODELSCOPE_API_KEY: z.string().optional(),
     MODELSCOPE_MODEL_ID: z.string().optional(),
+    OPENAI_API_KEY: z.string().optional(),
+    ANTHROPIC_API_KEY: z.string().optional(),
+    DOUBAO_API_KEY: z.string().optional(),
+    ENABLE_GPT4_VISION: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform(val => val === 'true'),
+    ENABLE_CLAUDE_VISION: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform(val => val === 'true'),
+    ENABLE_DOUBAO_VL: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform(val => val === 'true'),
+    QWEN30B_WEIGHT: z.coerce.number().min(0.1).max(5).default(1.2),
+    QWEN235B_WEIGHT: z.coerce.number().min(0.1).max(5).default(1.5),
+    GPT4V_WEIGHT: z.coerce.number().min(0.1).max(5).default(1.0),
+    CLAUDE_WEIGHT: z.coerce.number().min(0.1).max(5).default(1.1),
+    DOUBAO_WEIGHT: z.coerce.number().min(0.1).max(5).default(0.9),
+    SINGLE_MODEL_TIMEOUT: z.coerce.number().min(5).max(120).default(30),
+    MULTI_MODEL_TIMEOUT: z.coerce.number().min(10).max(180).default(60),
   })
   .superRefine((value, ctx) => {
     if (
