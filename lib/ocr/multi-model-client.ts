@@ -402,7 +402,9 @@ export class MultiModelClient {
       throw new Error(`OpenAI API error (${response.status})`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string | Array<{ type?: string; text?: string }> } }>;
+    };
     const message = data.choices?.[0]?.message?.content;
     if (!message) {
       throw new Error('OpenAI response is empty');
@@ -459,7 +461,7 @@ export class MultiModelClient {
       throw new Error(`Claude API error (${response.status})`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as { content?: Array<{ type?: string; text?: string }> };
     const content = data.content?.[0];
     if (!content) {
       throw new Error('Claude response is empty');
@@ -508,7 +510,9 @@ export class MultiModelClient {
       throw new Error(`Doubao API error (${response.status})`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string | Array<{ type?: string; text?: string }> } }>;
+    };
     const message = data.choices?.[0]?.message?.content;
     if (!message) {
       throw new Error('Doubao response is empty');
