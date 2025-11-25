@@ -1,12 +1,29 @@
-import { auth } from '@/lib/auth/config';
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { prisma } from '@/lib/db/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CreateLessonDialog } from '@/components/create-lesson-dialog';
 
-export const runtime = 'nodejs';
+interface ClassData {
+  id: number;
+  name: string;
+  gradeLevel: string;
+  lessons: Lesson[];
+  _count: {
+    students: number;
+  };
+}
+
+interface Lesson {
+  id: number;
+  title: string;
+  status: string;
+  createdAt: number;
+}
 
 interface ClassPageProps {
   params: Promise<{
@@ -14,40 +31,62 @@ interface ClassPageProps {
   }>;
 }
 
-export default async function ClassDetailPage({ params }: ClassPageProps) {
-  const session = await auth();
+export default function ClassDetailPage({ params }: ClassPageProps) {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [cls, setCls] = useState<ClassData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [classId, setClassId] = useState<number | null>(null);
 
-  if (!session?.user) {
-    redirect('/login?callbackUrl=/classes');
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login?callbackUrl=/classes');
+    }
+  }, [status, router]);
+
+  useEffect(() => {
+    if (session?.user) {
+      loadClassData();
+    }
+  }, [session, params]);
+
+  const loadClassData = async () => {
+    try {
+      const { classId: classIdParam } = await params;
+      const currentClassId = Number(classIdParam);
+
+      if (!currentClassId || !Number.isFinite(currentClassId)) {
+        router.push('/classes');
+        return;
+      }
+
+      setClassId(currentClassId);
+
+      const response = await fetch(`/api/classes/${currentClassId}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          router.push('/classes');
+          return;
+        }
+        throw new Error('Failed to fetch class data');
+      }
+
+      const data = await response.json();
+      setCls(data.class);
+    } catch (error) {
+      console.error('Error loading class data:', error);
+      router.push('/classes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (status === 'loading' || !session) {
+    return <div>加载中...</div>;
   }
 
-  const { classId: classIdParam } = await params;
-  const userId = Number(session.user.id);
-  const classId = Number(classIdParam);
-
-  if (!classId || !Number.isFinite(classId)) {
-    redirect('/classes');
-  }
-
-  const cls = await prisma.class.findFirst({
-    where: {
-      id: classId,
-      teacherId: userId,
-    },
-    include: {
-      lessons: {
-        orderBy: { createdAt: 'desc' },
-      },
-      _count: {
-        select: {
-          students: true,
-        },
-      },
-    },
-  });
-
-  if (!cls) {
-    redirect('/classes');
+  if (loading || !cls || !classId) {
+    return <div>加载中...</div>;
   }
 
   return (

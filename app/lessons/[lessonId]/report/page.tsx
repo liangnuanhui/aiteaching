@@ -3,65 +3,88 @@
  * Displays AI-generated analysis report for lesson
  */
 
-import { auth } from '@/lib/auth/config';
-import { createPrismaClient } from '@/lib/db/client';
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { ReportClient } from './report-client';
 
-// Use Node.js runtime for Prisma support
-export const runtime = 'nodejs';
-
-const prisma = createPrismaClient();
-
-export default async function ReportPage({ params }: { params: Promise<{ lessonId: string }> }) {
-  const session = await auth();
-  if (!session?.user) {
-    redirect('/login');
-  }
-
-  const { lessonId: lessonIdStr } = await params;
-  const lessonId = Number(lessonIdStr);
-
-  // Get lesson info
-  const lesson = await prisma.lessonCard.findUnique({
-    where: { id: lessonId },
-    include: {
-      class: true,
-    },
-  });
-
-  if (!lesson) {
-    return <div className="p-8">课程不存在</div>;
-  }
-
-  if (lesson.class.teacherId !== Number(session.user.id)) {
-    return <div className="p-8">无权限访问</div>;
-  }
-
-  // Get existing report
-  const report = await prisma.report.findFirst({
-    where: {
-      lessonId,
-      reportType: 'class',
-    },
-  });
-
-  // Get upload stats
-  const uploads = await prisma.upload.findMany({
-    where: {
-      lessonId,
-    },
-    select: {
-      triageStatus: true,
-    },
-  });
-
-  const stats = {
-    total: uploads.length,
-    confirmed: uploads.filter(u => u.triageStatus === 'confirmed').length,
-    pending: uploads.filter(u => u.triageStatus !== 'confirmed' && u.triageStatus !== 'failed')
-      .length,
+interface Lesson {
+  id: number;
+  title: string;
+  class: {
+    id: number;
+    teacherId: number;
   };
+}
+
+interface ReportData {
+  lesson: Lesson;
+  report: {
+    content: string;
+  } | null;
+  stats: {
+    total: number;
+    confirmed: number;
+    pending: number;
+  };
+}
+
+interface ReportPageProps {
+  params: Promise<{ lessonId: string }>;
+}
+
+export default function ReportPage({ params }: ReportPageProps) {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [data, setData] = useState<ReportData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [status, router]);
+
+  useEffect(() => {
+    if (session?.user) {
+      loadReportData();
+    }
+  }, [session, params]);
+
+  const loadReportData = async () => {
+    try {
+      const { lessonId: lessonIdStr } = await params;
+      const lessonId = Number(lessonIdStr);
+
+      const response = await fetch(`/api/lessons/${lessonId}/report`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          return;
+        }
+        if (response.status === 403) {
+          return;
+        }
+        throw new Error('Failed to fetch report data');
+      }
+
+      const result = await response.json();
+      setData(result);
+    } catch (error) {
+      console.error('Error loading report data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (status === 'loading' || !session) {
+    return <div>加载中...</div>;
+  }
+
+  if (loading || !data) {
+    return <div>加载中...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

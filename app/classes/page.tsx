@@ -1,28 +1,60 @@
-import { auth } from '@/lib/auth/config';
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { prisma } from '@/lib/db/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { createClass } from '@/app/actions/classes';
 
-export const runtime = 'nodejs';
+interface Class {
+  id: number;
+  name: string;
+  gradeLevel: string;
+  createdAt: number;
+}
 
-export default async function ClassesPage() {
-  const session = await auth();
+export default function ClassesPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!session?.user) {
-    redirect('/login?callbackUrl=/classes');
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login?callbackUrl=/classes');
+    }
+  }, [status, router]);
+
+  useEffect(() => {
+    if (session?.user) {
+      fetchClasses();
+    }
+  }, [session]);
+
+  const fetchClasses = async () => {
+    try {
+      const response = await fetch('/api/classes');
+      if (!response.ok) throw new Error('Failed to fetch classes');
+      const result = await response.json();
+      setClasses(result.classes);
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (status === 'loading' || !session) {
+    return <div>加载中...</div>;
   }
 
-  const teacherId = Number(session.user.id);
-
-  const classes = await prisma.class.findMany({
-    where: { teacherId },
-    orderBy: { createdAt: 'desc' },
-  });
+  if (loading) {
+    return <div>加载中...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-background p-8">

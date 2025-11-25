@@ -1,12 +1,12 @@
 /**
  * NextAuth Authentication Configuration
- * Supports credentials login (email + password) and Google OAuth
+ * Supports credentials login (email + password) - Ready for phone verification
+ * Removed Google OAuth for Edge Runtime compatibility
  */
 
 import NextAuth from 'next-auth';
 import type { NextAuthConfig } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import Google from 'next-auth/providers/google';
 import { verifyPassword } from '@/lib/auth/password';
 import { prisma } from '@/lib/db/client';
 import { PrismaAdapter } from '@/lib/auth/adapter';
@@ -28,21 +28,8 @@ export const authConfig: NextAuthConfig = {
 
   // Authentication providers configuration
   providers: [
-    // Google OAuth login
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      // Google authorization scopes
-      authorization: {
-        params: {
-          prompt: 'consent',
-          access_type: 'offline',
-          response_type: 'code',
-        },
-      },
-    }),
-
     // Credentials login (email + password)
+    // TODO: Add phone/SMS verification provider
     Credentials({
       name: 'credentials',
       credentials: {

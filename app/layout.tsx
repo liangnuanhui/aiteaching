@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 
-export const runtime = 'edge';
+// CRITICAL: Force Node.js runtime - Prisma and NextAuth are not compatible with Edge Runtime
+export const runtime = 'nodejs';
 
 export const metadata: Metadata = {
   title: '心灵微光 AI 助教工作台',

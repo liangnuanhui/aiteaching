@@ -1,14 +1,27 @@
-import { auth } from '@/lib/auth/config';
+'use client';
+
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { handleSignOut } from '@/app/actions/auth';
 import { Suspense } from 'react';
 import { HealthStatusCard } from '@/components/health-status-card';
 
-export const runtime = 'nodejs';
+export default function Home() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
-export default async function Home() {
-  const session = await auth();
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [status, router]);
+
+  if (status === 'loading' || !session) {
+    return <div>加载中...</div>;
+  }
 
   return (
     <div className="min-h-screen flex flex-col p-8">

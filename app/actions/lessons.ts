@@ -13,6 +13,9 @@ import { tableExists } from '@/lib/db/utils';
 import { ClassRepository, LessonCardRepository } from '@/repositories';
 import { callModelScopeChat, getMessageContentText } from '@/lib/modelscope/client';
 
+// Force Node.js runtime - auth() requires Prisma
+export const runtime = 'nodejs';
+
 /**
  * Create a new lesson card under a class owned by the current user
  * (Server Action, used在班级详情页表单)

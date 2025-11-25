@@ -1,0 +1,48 @@
+/**
+ * Minimal Middleware (No NextAuth imports)
+ * Temporarily simplified to avoid Edge Runtime compatibility issues
+ * TODO: Re-enable full auth check when migrating to Next.js canary or NextAuth stable
+ */
+
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+
+// Define public routes - everything is public for now to avoid auth issues
+const PUBLIC_PATHS = [
+  '/',
+  '/privacy',
+  '/terms',
+  '/login',
+  '/register',
+  '/api/auth',
+  '/api/health',
+  '/api/register',
+  '/teaching',
+  '/dashboard',
+];
+
+export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const isPublicPath =
+    PUBLIC_PATHS.some(path => pathname === path || pathname.startsWith(path + '/')) ||
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/api/auth/');
+
+  // Allow all requests for now (no authentication check)
+  // This is temporary until Edge Runtime compatibility is resolved
+  return NextResponse.next();
+}
+
+// Configure routes where middleware should run
+export const config = {
+  matcher: [
+    /*
+     * Match all paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - files in the public folder
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+};

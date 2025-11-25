@@ -2,17 +2,27 @@
  * Profile page that surfaces basic account information and placeholder guidance.
  */
 
-import { auth } from '@/lib/auth/config';
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-export default async function ProfilePage() {
-  const session = await auth();
+export default function ProfilePage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
-  if (!session?.user) {
-    redirect('/login');
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [status, router]);
+
+  if (status === 'loading' || !session) {
+    return <div>加载中...</div>;
   }
 
   return (

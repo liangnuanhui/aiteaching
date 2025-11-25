@@ -10,6 +10,9 @@ import { auth } from '@/lib/auth/config';
 import { createPrismaClient } from '@/lib/db/client';
 import { ClassRepository, StudentRepository } from '@/repositories';
 
+// Force Node.js runtime - auth() requires Prisma
+export const runtime = 'nodejs';
+
 /**
  * Create a new student under a class owned by the current user
  */

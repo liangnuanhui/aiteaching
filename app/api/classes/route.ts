@@ -1,21 +1,31 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth/config';
+import { prisma } from '@/lib/db/client';
 import { createdResponse, successResponse, withRepositories } from '@/lib/api';
 import { ValidationError, ResourceNotFoundError } from '@/lib/errors';
 
 export const runtime = 'nodejs';
 
-// GET /api/classes - list classes (optionally by teacherId)
+// GET /api/classes - list classes for authenticated teacher
 export async function GET(request: NextRequest) {
-  return withRepositories(request, async repos => {
-    const searchParams = request.nextUrl.searchParams;
-    const teacherIdParam = searchParams.get('teacherId');
+  try {
+    const session = await auth();
 
-    const teacherId = teacherIdParam ? parseInt(teacherIdParam, 10) : undefined;
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    const classes = await repos.classes.findAll({ teacherId });
+    const teacherId = Number(session.user.id);
+    const classes = await prisma.class.findMany({
+      where: { teacherId },
+      orderBy: { createdAt: 'desc' },
+    });
 
-    return successResponse(classes, 'Classes retrieved successfully');
-  });
+    return NextResponse.json({ classes });
+  } catch (error) {
+    console.error('Error fetching classes:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
 
 // POST /api/classes - create a new class

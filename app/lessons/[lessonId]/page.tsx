@@ -1,7 +1,9 @@
-import { auth } from '@/lib/auth/config';
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { prisma } from '@/lib/db/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { updateLessonStatus } from '@/app/actions/lessons';
@@ -12,7 +14,26 @@ import { VditorEditor } from '@/components/vditor-editor';
 import { LessonStudentWorks } from '@/components/lesson-student-works';
 import { getLessonUploadToken } from '@/lib/lesson-upload-token';
 
-export const runtime = 'nodejs';
+interface Student {
+  id: number;
+  name: string;
+  nickname: string | null;
+}
+
+interface Lesson {
+  id: number;
+  title: string;
+  status: string;
+  mdPlan: string;
+  h5Json: any;
+  classId: number;
+  class: {
+    id: number;
+    name: string;
+    gradeLevel: string;
+    students: Student[];
+  };
+}
 
 interface LessonPageProps {
   params: Promise<{
@@ -23,68 +44,81 @@ interface LessonPageProps {
   }>;
 }
 
-export default async function LessonDetailPage({ params, searchParams }: LessonPageProps) {
-  const session = await auth();
+export default function LessonDetailPage({ params, searchParams }: LessonPageProps) {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [lesson, setLesson] = useState<Lesson | null>(null);
+  const [hasStudentWorks, setHasStudentWorks] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [lessonId, setLessonId] = useState<number | null>(null);
+  const [initialTab, setInitialTab] = useState<'edit' | 'h5' | 'works'>('edit');
 
-  if (!session?.user) {
-    redirect('/login');
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [status, router]);
+
+  useEffect(() => {
+    if (session?.user) {
+      loadLessonData();
+    }
+  }, [session, params, searchParams]);
+
+  const loadLessonData = async () => {
+    try {
+      const { lessonId: lessonIdParam } = await params;
+      const currentLessonId = Number(lessonIdParam);
+
+      if (!currentLessonId || !Number.isFinite(currentLessonId)) {
+        router.push('/dashboard');
+        return;
+      }
+
+      setLessonId(currentLessonId);
+
+      const response = await fetch(`/api/lessons/${currentLessonId}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          router.push('/dashboard');
+          return;
+        }
+        throw new Error('Failed to fetch lesson data');
+      }
+
+      const data = await response.json();
+      setLesson(data.lesson);
+      setHasStudentWorks(data.hasStudentWorks);
+
+      // Determine initial tab
+      const sp = searchParams ? await searchParams : undefined;
+      const initialTabFromSearch = sp?.tab;
+      let tab: 'edit' | 'h5' | 'works' = 'edit';
+      if (initialTabFromSearch === 'h5' || initialTabFromSearch === 'works') {
+        tab = initialTabFromSearch;
+      } else if (data.hasStudentWorks) {
+        tab = 'works';
+      }
+      setInitialTab(tab);
+    } catch (error) {
+      console.error('Error loading lesson data:', error);
+      router.push('/dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (status === 'loading' || !session) {
+    return <div>加载中...</div>;
   }
 
-  const { lessonId } = await params;
-  const sp = searchParams ? await searchParams : undefined;
-  const id = Number(lessonId);
-
-  if (!id || !Number.isFinite(id)) {
-    redirect('/dashboard');
-  }
-
-  const lesson = await prisma.lessonCard.findFirst({
-    where: {
-      id,
-      class: {
-        teacherId: Number(session.user.id),
-      },
-    },
-    include: {
-      class: {
-        include: {
-          students: {
-            select: {
-              id: true,
-              name: true,
-              nickname: true,
-            },
-            orderBy: {
-              name: 'asc',
-            },
-          },
-        },
-      },
-    },
-  });
-
-  if (!lesson) {
-    redirect('/dashboard');
-  }
-
-  const hasStudentWorks =
-    (await prisma.upload.count({
-      where: {
-        lessonId: lesson.id,
-      },
-    })) > 0;
-
-  const uploadToken = getLessonUploadToken(lesson.id);
-  const initialTabFromSearch = sp?.tab;
-  let initialTab: 'edit' | 'h5' | 'works' = 'edit';
-  if (initialTabFromSearch === 'h5' || initialTabFromSearch === 'works') {
-    initialTab = initialTabFromSearch;
-  } else if (hasStudentWorks) {
-    initialTab = 'works';
+  if (loading || !lesson || !lessonId) {
+    return <div>加载中...</div>;
   }
 
   const statusLabel =
     lesson.status === 'draft' ? '备课中' : lesson.status === 'ready' ? '待上课' : lesson.status;
+  const uploadToken = getLessonUploadToken(lesson.id);
 
   return (
     <div className="min-h-screen bg-background p-8">

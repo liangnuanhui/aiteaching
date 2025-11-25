@@ -3,107 +3,107 @@
  * Main page for archiving student works with three-state triage
  */
 
-import { auth } from '@/lib/auth/config';
-import { createPrismaClient } from '@/lib/db/client';
-import { storage } from '@/lib/storage';
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { ArchiveClient } from './archive-client';
 
-// Use Node.js runtime for Prisma support
-export const runtime = 'nodejs';
+interface Student {
+  id: number;
+  name: string;
+  nickname: string | null;
+}
 
-const prisma = createPrismaClient();
+interface Lesson {
+  id: number;
+  title: string;
+  class: {
+    id: number;
+    teacherId: number;
+    students: Student[];
+  };
+}
 
-export default async function ArchivePage({ params }: { params: Promise<{ lessonId: string }> }) {
-  const session = await auth();
-  if (!session?.user) {
-    redirect('/login');
-  }
+interface Upload {
+  id: number;
+  filePath: string;
+  triageStatus: string;
+  uploadedAt: string;
+  student: Student | null;
+  suggestedStudent: Student | null;
+  previewUrl: string;
+}
 
-  const { lessonId: lessonIdStr } = await params;
-  const lessonId = Number(lessonIdStr);
+interface GroupedUploads {
+  autoMatched: Upload[];
+  pendingConfirmation: Upload[];
+  pendingManual: Upload[];
+  confirmed: Upload[];
+  pending: Upload[];
+  processing: Upload[];
+  failed: Upload[];
+}
 
-  // Get lesson info
-  const lesson = await prisma.lessonCard.findUnique({
-    where: { id: lessonId },
-    include: {
-      class: {
-        include: {
-          students: {
-            select: {
-              id: true,
-              name: true,
-              nickname: true,
-            },
-            orderBy: {
-              name: 'asc',
-            },
-          },
-        },
-      },
-    },
-  });
+interface ArchivePageProps {
+  params: Promise<{ lessonId: string }>;
+}
 
-  if (!lesson) {
-    return <div className="p-8">课程不存在</div>;
-  }
+export default function ArchivePage({ params }: ArchivePageProps) {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [lesson, setLesson] = useState<Lesson | null>(null);
+  const [grouped, setGrouped] = useState<GroupedUploads | null>(null);
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (lesson.class.teacherId !== Number(session.user.id)) {
-    return <div className="p-8">无权限访问</div>;
-  }
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [status, router]);
 
-  // Get uploads grouped by status
-  const rawUploads = await prisma.upload.findMany({
-    where: {
-      lessonId,
-    },
-    include: {
-      student: {
-        select: {
-          id: true,
-          name: true,
-          nickname: true,
-        },
-      },
-      suggestedStudent: {
-        select: {
-          id: true,
-          name: true,
-          nickname: true,
-        },
-      },
-    },
-    orderBy: {
-      uploadedAt: 'asc',
-    },
-  });
+  useEffect(() => {
+    if (session?.user) {
+      loadArchiveData();
+    }
+  }, [session, params]);
 
-  const uploads = rawUploads.map(upload => ({
-    ...upload,
-    previewUrl: storage ? storage.getUrl(upload.filePath) : '',
-  }));
+  const loadArchiveData = async () => {
+    try {
+      const { lessonId: lessonIdStr } = await params;
+      const lessonId = Number(lessonIdStr);
 
-  // Group by status
-  const grouped = {
-    autoMatched: uploads.filter(u => u.triageStatus === 'auto_matched'),
-    pendingConfirmation: uploads.filter(u => u.triageStatus === 'pending_confirmation'),
-    pendingManual: uploads.filter(u => u.triageStatus === 'pending_manual'),
-    confirmed: uploads.filter(u => u.triageStatus === 'confirmed'),
-    pending: uploads.filter(u => u.triageStatus === 'pending'),
-    processing: uploads.filter(u => u.triageStatus === 'processing'),
-    failed: uploads.filter(u => u.triageStatus === 'failed'),
+      const response = await fetch(`/api/lessons/${lessonId}/archive`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          return;
+        }
+        if (response.status === 403) {
+          return;
+        }
+        throw new Error('Failed to fetch archive data');
+      }
+
+      const data = await response.json();
+      setLesson(data.lesson);
+      setGrouped(data.grouped);
+      setStats(data.stats);
+    } catch (error) {
+      console.error('Error loading archive data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const stats = {
-    total: uploads.length,
-    autoMatched: grouped.autoMatched.length,
-    pendingConfirmation: grouped.pendingConfirmation.length,
-    pendingManual: grouped.pendingManual.length,
-    confirmed: grouped.confirmed.length,
-    pending: grouped.pending.length,
-    processing: grouped.processing.length,
-    failed: grouped.failed.length,
-  };
+  if (status === 'loading' || !session) {
+    return <div>加载中...</div>;
+  }
+
+  if (loading || !lesson || !grouped || !stats) {
+    return <div>加载中...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -55,11 +55,28 @@ export async function GET(
     // 3. Get existing report
     const report = await reportGenerator.getReport(lessonId);
 
-    if (!report) {
-      return NextResponse.json({ error: 'Report not found' }, { status: 404 });
-    }
+    // 4. Get upload stats
+    const uploads = await prisma.upload.findMany({
+      where: {
+        lessonId,
+      },
+      select: {
+        triageStatus: true,
+      },
+    });
 
-    return NextResponse.json({ content: report });
+    const stats = {
+      total: uploads.length,
+      confirmed: uploads.filter(u => u.triageStatus === 'confirmed').length,
+      pending: uploads.filter(u => u.triageStatus !== 'confirmed' && u.triageStatus !== 'failed')
+        .length,
+    };
+
+    return NextResponse.json({
+      lesson,
+      report: report ? { content: report } : null,
+      stats,
+    });
   } catch (error) {
     console.error('Failed to get report:', error);
     return NextResponse.json(

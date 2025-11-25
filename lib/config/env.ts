@@ -13,12 +13,15 @@ const envSchema = z
     NEXTAUTH_SECRET: z.string().min(1, 'NEXTAUTH_SECRET is required').default('dev-secret'),
     NEXTAUTH_URL: z.string().url().optional(),
 
-    // OAuth provider configuration
-    GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID must be a non-empty string').optional(),
+    // OAuth provider configuration (empty string treated as undefined)
+    GOOGLE_CLIENT_ID: z
+      .string()
+      .optional()
+      .transform(val => val || undefined),
     GOOGLE_CLIENT_SECRET: z
       .string()
-      .min(1, 'GOOGLE_CLIENT_SECRET must be a non-empty string')
-      .optional(),
+      .optional()
+      .transform(val => val || undefined),
 
     // Rate limit configuration
     RATE_LIMIT_ENABLED: z
