@@ -18,6 +18,7 @@ function buildResult(partial: Partial<ModelAnalysisResult>): ModelAnalysisResult
     textContent: '作品文本内容',
     keywords: ['色彩'],
     emotions: ['快乐'],
+    visualElements: [],
     confidence: 0.8,
     analysisTime: 1000,
     rawResponse: '{}',

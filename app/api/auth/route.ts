@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { withMiddleware, withApiHandler } from '@/lib/api';
-import { analytics, AnalyticsEventType } from '@/lib/analytics';
+import { getAnalytics, AnalyticsEventType } from '@/lib/analytics';
 import {
   TokenExpiredError,
   InvalidCredentialsError,
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       const requiredRole = url.searchParams.get('role') || 'admin';
 
       if (!authHeader) {
-        await analytics.trackError('AUTHENTICATION_ERROR', 'Missing Authorization header', {
+        await getAnalytics().trackError('AUTHENTICATION_ERROR', 'Missing Authorization header', {
           path: url.pathname,
         });
         throw new AuthenticationError('Missing Authorization header');
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
       // Simulate credential validation
       if (!token || token.length < 10) {
-        await analytics.trackError('INVALID_CREDENTIALS', 'Invalid token', {
+        await getAnalytics().trackError('INVALID_CREDENTIALS', 'Invalid token', {
           path: url.pathname,
         });
         throw new InvalidCredentialsError('Invalid token');
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
       // Simulate expiration check
       if (token.endsWith('.expired')) {
-        await analytics.trackError('TOKEN_EXPIRED', 'Token expired', {
+        await getAnalytics().trackError('TOKEN_EXPIRED', 'Token expired', {
           path: url.pathname,
         });
         throw new TokenExpiredError('Token expired');
@@ -55,14 +55,14 @@ export async function GET(request: NextRequest) {
       const hasRole = roles.includes(requiredRole);
 
       if (!hasRole) {
-        await analytics.trackError('AUTHORIZATION_ERROR', 'Insufficient role', {
+        await getAnalytics().trackError('AUTHORIZATION_ERROR', 'Insufficient role', {
           path: url.pathname,
           requiredRole,
         });
         throw new AuthorizationError('Insufficient role');
       }
 
-      await analytics.trackBusinessEvent(AnalyticsEventType.USER_UPDATED, {
+      await getAnalytics().trackBusinessEvent(AnalyticsEventType.USER_UPDATED, {
         action: 'auth.success',
         role: requiredRole,
       });

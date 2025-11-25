@@ -189,49 +189,6 @@ function parseVideoUrl(url?: string): ParsedVideoUrl {
   };
 }
 
-function getEmbeddedVideoUrl(url?: string): string | null {
-  if (!url) return null;
-
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.toLowerCase();
-
-    // YouTube (watch, share links)
-    if (host.includes('youtube.com') || host === 'youtu.be') {
-      let videoId = '';
-      if (host === 'youtu.be') {
-        videoId = parsed.pathname.replace('/', '');
-      } else {
-        videoId = parsed.searchParams.get('v') || '';
-      }
-      if (videoId) {
-        return `https://www.youtube.com/embed/${videoId}`;
-      }
-    }
-
-    // Bilibili BV 号
-    if (host.includes('bilibili.com')) {
-      const match = url.match(/BV[\w]+/i);
-      if (match) {
-        return `https://player.bilibili.com/player.html?bvid=${match[0]}&high_quality=1&autoplay=0`;
-      }
-    }
-
-    // Youku（基于 id_XXXX.html）
-    if (host.includes('youku.com')) {
-      const match = url.match(/id_([A-Za-z0-9=]+)/);
-      if (match && match[1]) {
-        return `https://player.youku.com/embed/${match[1]}`;
-      }
-    }
-  } catch {
-    // 非法 URL（可能是相对路径），fallback 交给原 video 标签处理
-    return null;
-  }
-
-  return null;
-}
-
 export function parseSlides(h5Json: string | null): Slide[] {
   if (!h5Json) return [];
   try {

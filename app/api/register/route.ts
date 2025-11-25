@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { withRepositories, createdResponse } from '@/lib/api';
 import { createCacheClient } from '@/lib/cache/client';
 import { ResourceAlreadyExistsError, ValidationError } from '@/lib/errors';
-import { analytics, AnalyticsEventType } from '@/lib/analytics';
+import { getAnalytics, AnalyticsEventType } from '@/lib/analytics';
 
 // Use Node.js runtime in local dev to support Prisma Client
 export const runtime = 'nodejs';
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     const cache = createCacheClient();
     await cache?.delete('users:all');
 
-    await analytics.trackBusinessEvent(AnalyticsEventType.USER_CREATED, {
+    await getAnalytics().trackBusinessEvent(AnalyticsEventType.USER_CREATED, {
       userId: user.id,
       email: user.email,
       source: 'register',

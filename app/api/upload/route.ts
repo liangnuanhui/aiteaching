@@ -71,9 +71,12 @@ export async function POST(request: NextRequest) {
       const key = `h5/${filename}`;
 
       const stored = await uploadFile(key, file, {
-        originalName: file.name,
-        uploadedAt: new Date().toISOString(),
-        uploadedBy: userId,
+        metadata: {
+          originalName: file.name,
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: userId,
+        },
+        contentType: file.type || 'application/octet-stream',
       });
 
       if (!stored) {

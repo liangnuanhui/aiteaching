@@ -156,6 +156,7 @@ export class TriageService {
         workDescription: ocrResult.description,
         workKeywords: JSON.stringify(ocrResult.keywords),
         workEmotions: JSON.stringify(ocrResult.emotions),
+        visualElements: JSON.stringify(ocrResult.visualElements || []),
         contentExtractedAt: now,
 
         // Multi-model metadata

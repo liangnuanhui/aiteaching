@@ -22,6 +22,7 @@ import { getMultiModelClient, type FusedResult } from '@/lib/ocr/multi-model-cli
 import { getQwenVLClient, type OCRResult } from '@/lib/ocr/qwen-vl-client';
 import { TriageService } from '@/lib/upload/triage-service';
 import path from 'path';
+import { getLocalUploadDir } from '@/lib/storage/paths';
 
 // Environment detection
 const NODE_ENV = process.env.NODE_ENV || 'production';
@@ -32,6 +33,8 @@ const IS_DEV = NODE_ENV === 'development';
  * Database stores: "lesson_21/xxx.jpeg"
  * Actual file location: "uploads/lesson_21/xxx.jpeg"
  */
+const LOCAL_UPLOAD_DIR = getLocalUploadDir();
+
 function resolveFilePath(filePath: string): string {
   // If already absolute path, return as is
   if (path.isAbsolute(filePath)) {
@@ -43,8 +46,12 @@ function resolveFilePath(filePath: string): string {
     return path.join(process.cwd(), filePath);
   }
 
-  // Otherwise, prepend "uploads/" directory
-  return path.join(process.cwd(), 'uploads', filePath);
+  const normalized = filePath.startsWith('uploads/')
+    ? filePath.replace(/^uploads\//, '')
+    : filePath;
+
+  // Otherwise, prepend local upload directory (default outside repo)
+  return path.join(LOCAL_UPLOAD_DIR, normalized);
 }
 
 type ExtendedOCRResult = OCRResult & {
@@ -53,6 +60,10 @@ type ExtendedOCRResult = OCRResult & {
   educationalInsights?: FusedResult['educationalInsights'];
 };
 
+/**
+ * Convert fused multi-model result to OCR result format
+ * Now properly includes visual_elements from fusion
+ */
 function fusedResultToOcrResult(fused: FusedResult): ExtendedOCRResult {
   return {
     studentName: fused.studentName,
@@ -61,6 +72,7 @@ function fusedResultToOcrResult(fused: FusedResult): ExtendedOCRResult {
     textContent: fused.textContent,
     keywords: fused.keywords,
     emotions: fused.emotions,
+    visualElements: fused.visualElements, // ✅ Now properly extracted from fusion
     modelConsensus: fused.modelConsensus,
     modelCount: fused.detailedResults.length,
     educationalInsights: fused.educationalInsights,
@@ -152,23 +164,37 @@ async function processPendingUpload(): Promise<boolean> {
       );
     }
 
-    // 4. Perform OCR recognition (multi-model + fallback)
+    // 4. Perform OCR recognition (multi-model with fallback)
     log.worker(`Running OCR on ${upload.filePath.split('/').pop()}...`);
 
     let fusedResult: FusedResult | null = null;
     let ocrResult: ExtendedOCRResult;
 
     try {
+      // Try multi-model analysis (Qwen30B + Qwen235B in parallel)
       fusedResult = await multiModelClient.analyzeImageMultiModel(fullFilePath);
       log.worker(
         `Analyzed by ${fusedResult.detailedResults.length} models ` +
           `(consensus: ${(fusedResult.modelConsensus * 100).toFixed(0)}%)`
       );
+
+      // Log visual elements extraction
+      if (fusedResult.visualElements && fusedResult.visualElements.length > 0) {
+        log.worker(`Visual elements: [${fusedResult.visualElements.join(', ')}]`);
+      }
+
       ocrResult = fusedResultToOcrResult(fusedResult);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log.warning(`Multi-model analysis failed, falling back to single model. Reason: ${message}`);
+
+      // Fallback to single model (Qwen30B with deep artwork analysis)
       ocrResult = await ocrClient.recognizeImage(fullFilePath);
+      log.worker(`Single model fallback complete`);
+
+      if (ocrResult.visualElements && ocrResult.visualElements.length > 0) {
+        log.worker(`Visual elements: [${ocrResult.visualElements.join(', ')}]`);
+      }
     }
 
     log.worker(`Recognized: "${ocrResult.studentName}" (${ocrResult.workType})`);

@@ -41,6 +41,13 @@ next-env.d.ts
 .wrangler/
 .mf/
 
+# SQLite database files (local development)
+prisma/*.db
+prisma/*.db-journal
+
+# User uploads (local development only, production uses R2)
+uploads/
+
 # Cloudflare
 worker-configuration.d.ts
 

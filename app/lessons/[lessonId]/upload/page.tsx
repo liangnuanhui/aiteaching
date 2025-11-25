@@ -1,8 +1,7 @@
-import { H5Uploader } from '@/components/upload/h5-uploader';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { prisma } from '@/lib/db/client';
 import { notFound } from 'next/navigation';
 import { verifyLessonUploadToken } from '@/lib/lesson-upload-token';
+import { UploadPageClient } from './upload-page-client';
 
 export const runtime = 'nodejs';
 
@@ -51,25 +50,14 @@ export default async function LessonUploadPage({ params, searchParams }: PagePro
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="bg-primary text-primary-foreground p-6 pb-12">
-        <h1 className="mb-2 text-2xl font-bold">{lesson.title}</h1>
-        <p className="opacity-90">
-          {lesson.class?.gradeLevel} • {lesson.class?.name}
-        </p>
-      </div>
+  const classInfo = lesson.class ? `${lesson.class.gradeLevel} • ${lesson.class.name}` : '';
 
-      <div className="px-4 -mt-6">
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-lg">上传学生作品</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <H5Uploader lessonId={id} uploadToken={token as string} />
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+  return (
+    <UploadPageClient
+      lessonId={id}
+      uploadToken={token as string}
+      lessonTitle={lesson.title}
+      classInfo={classInfo}
+    />
   );
 }

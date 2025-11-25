@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { LoggerFactory } from '@/lib/logger';
-import { analytics } from '@/lib/analytics';
+import { getAnalytics } from '@/lib/analytics';
 
 const logger = LoggerFactory.getLogger('api-middleware');
 
@@ -51,6 +51,9 @@ export async function withRequestLogging<T>(
   request: NextRequest,
   handler: () => Promise<NextResponse<T>>
 ): Promise<NextResponse<T>> {
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[withRequestLogging] start', request.method, request.nextUrl.pathname);
+  }
   const requestId = generateRequestId();
   const traceId = generateTraceId();
   const spanId = generateSpanId();
@@ -80,6 +83,9 @@ export async function withRequestLogging<T>(
 
   try {
     const response = await handler();
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[withRequestLogging] handler resolved', response.status);
+    }
     const duration = Date.now() - startTime;
 
     // Record request completion using http method (auto choose log level by status)
@@ -89,13 +95,16 @@ export async function withRequestLogging<T>(
     });
 
     // Track analytics event
-    await analytics.trackHttpRequest(method, path, response.status, duration, {
+    await getAnalytics().trackHttpRequest(method, path, response.status, duration, {
       requestId,
       traceId,
       spanId,
       ip: ip || undefined,
       userAgent: userAgent || undefined,
     });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[withRequestLogging] analytics tracked');
+    }
 
     // Add tracing response headers
     response.headers.set('X-Request-ID', requestId);
@@ -119,7 +128,7 @@ export async function withRequestLogging<T>(
     });
 
     // Track error event
-    await analytics.trackError(
+    await getAnalytics().trackError(
       (error as Error).name || 'Error',
       (error as Error).message || 'Unknown error',
       {
@@ -132,6 +141,9 @@ export async function withRequestLogging<T>(
         userAgent: userAgent || undefined,
       }
     );
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[withRequestLogging] handler error', error);
+    }
 
     throw error;
   }

@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { successResponse, createdResponse, withRepositories, withRateLimit } from '@/lib/api';
 import { withCache, createCacheClient } from '@/lib/cache/client';
 import { ValidationError, ResourceAlreadyExistsError } from '@/lib/errors';
-import { analytics, AnalyticsEventType } from '@/lib/analytics';
+import { getAnalytics, AnalyticsEventType } from '@/lib/analytics';
 
 export const runtime = 'nodejs';
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
         const cache = createCacheClient();
         await cache?.delete('users:all');
 
-        await analytics.trackBusinessEvent(AnalyticsEventType.USER_CREATED, {
+        await getAnalytics().trackBusinessEvent(AnalyticsEventType.USER_CREATED, {
           userId: user.id,
           email: user.email,
         });

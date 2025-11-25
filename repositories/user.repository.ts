@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { DatabaseError, DatabaseQueryError } from '@/lib/errors';
-import { analytics } from '@/lib/analytics';
+import { getAnalytics } from '@/lib/analytics';
 
 /**
  * User Repository
@@ -18,7 +18,7 @@ export class UserRepository {
       const users = await this.prisma.user.findMany({
         orderBy: { createdAt: orderBy },
       });
-      await analytics.trackDatabaseQuery('user.findAll', 'users', Date.now() - start);
+      await getAnalytics().trackDatabaseQuery('user.findAll', 'users', Date.now() - start);
       return users;
     } catch (error) {
       throw new DatabaseQueryError('Failed to fetch users', error);
@@ -34,7 +34,7 @@ export class UserRepository {
       const user = await this.prisma.user.findUnique({
         where: { id },
       });
-      await analytics.trackDatabaseQuery('user.findById', 'users', Date.now() - start, { id });
+      await getAnalytics().trackDatabaseQuery('user.findById', 'users', Date.now() - start, { id });
       return user;
     } catch (error) {
       throw new DatabaseQueryError(`Failed to fetch user with id ${id}`, error);
@@ -56,10 +56,15 @@ export class UserRepository {
           },
         },
       });
-      await analytics.trackDatabaseQuery('user.findByIdWithPosts', 'users', Date.now() - start, {
-        id,
-        limit,
-      });
+      await getAnalytics().trackDatabaseQuery(
+        'user.findByIdWithPosts',
+        'users',
+        Date.now() - start,
+        {
+          id,
+          limit,
+        }
+      );
       return user;
     } catch (error) {
       throw new DatabaseQueryError(`Failed to fetch user with posts for id ${id}`, error);
@@ -75,7 +80,7 @@ export class UserRepository {
       const user = await this.prisma.user.findUnique({
         where: { email },
       });
-      await analytics.trackDatabaseQuery('user.findByEmail', 'users', Date.now() - start, {
+      await getAnalytics().trackDatabaseQuery('user.findByEmail', 'users', Date.now() - start, {
         email,
       });
       return user;
@@ -97,7 +102,7 @@ export class UserRepository {
           ...(data.password !== undefined && { password: data.password }),
         },
       });
-      await analytics.trackDatabaseQuery('user.create', 'users', Date.now() - start);
+      await getAnalytics().trackDatabaseQuery('user.create', 'users', Date.now() - start);
       return user;
     } catch (error) {
       throw new DatabaseError('Failed to create user', error);
@@ -114,7 +119,7 @@ export class UserRepository {
         where: { id },
         data,
       });
-      await analytics.trackDatabaseQuery('user.update', 'users', Date.now() - start, { id });
+      await getAnalytics().trackDatabaseQuery('user.update', 'users', Date.now() - start, { id });
       return user;
     } catch (error) {
       throw new DatabaseError(`Failed to update user with id ${id}`, error);
@@ -130,7 +135,7 @@ export class UserRepository {
       const deleted = await this.prisma.user.delete({
         where: { id },
       });
-      await analytics.trackDatabaseQuery('user.delete', 'users', Date.now() - start, { id });
+      await getAnalytics().trackDatabaseQuery('user.delete', 'users', Date.now() - start, { id });
       return deleted;
     } catch (error) {
       throw new DatabaseError(`Failed to delete user with id ${id}`, error);
@@ -146,7 +151,7 @@ export class UserRepository {
       const count = await this.prisma.user.count({
         where: { email },
       });
-      await analytics.trackDatabaseQuery('user.existsByEmail', 'users', Date.now() - start, {
+      await getAnalytics().trackDatabaseQuery('user.existsByEmail', 'users', Date.now() - start, {
         email,
       });
       return count > 0;
@@ -164,7 +169,7 @@ export class UserRepository {
       const count = await this.prisma.user.count({
         where: { id },
       });
-      await analytics.trackDatabaseQuery('user.exists', 'users', Date.now() - start, { id });
+      await getAnalytics().trackDatabaseQuery('user.exists', 'users', Date.now() - start, { id });
       return count > 0;
     } catch (error) {
       throw new DatabaseQueryError(`Failed to check user existence: ${id}`, error);

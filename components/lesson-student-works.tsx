@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -142,6 +142,10 @@ export function LessonStudentWorks({
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
   const [statsFromServer, setStatsFromServer] = useState<Partial<WorksStats> | null>(null);
 
+  // 使用 ref 存储 works 数据，避免 useEffect 依赖问题
+  const worksRef = useRef<UploadWork[]>([]);
+  worksRef.current = works;
+
   useEffect(() => {
     const path = `/lessons/${lessonId}/upload`;
     const origin =
@@ -184,19 +188,52 @@ export function LessonStudentWorks({
   }, [lessonId]);
 
   useEffect(() => {
+    // 初次加载数据
     loadWorks();
 
-    let count = 0;
-    const maxPolls = 12;
-    const timer = setInterval(() => {
-      count += 1;
-      loadWorks();
-      if (count >= maxPolls) {
-        clearInterval(timer);
-      }
-    }, 10000);
+    // 智能轮询：持续轮询，动态调整频率
+    // 适应多种场景：
+    // 1. 教师在电脑前直接上传
+    // 2. 教师截图二维码发给别人上传
+    // 3. 多人协作上传场景
+    const FAST_POLL_INTERVAL = 5000; // 5 秒（活跃期）
+    const SLOW_POLL_INTERVAL = 30000; // 30 秒（静默期）
+    const RECENT_THRESHOLD = 300; // 5 分钟（秒）
 
-    return () => clearInterval(timer);
+    let timer: ReturnType<typeof setTimeout>;
+    let stopped = false;
+
+    const poll = () => {
+      if (stopped) return;
+
+      const currentWorks = worksRef.current;
+      const nowSeconds = Date.now() / 1000;
+
+      // 检查是否有最近 5 分钟内的上传
+      const hasRecentUploads = currentWorks.some(
+        (work: UploadWork) => work.uploadedAt > nowSeconds - RECENT_THRESHOLD
+      );
+
+      // 检查是否有正在处理的作品
+      const hasProcessingWorks = currentWorks.some(
+        (work: UploadWork) => work.triageStatus === 'pending' || work.triageStatus === 'processing'
+      );
+
+      // 动态调整轮询频率
+      const shouldPollFast = hasRecentUploads || hasProcessingWorks;
+      const nextInterval = shouldPollFast ? FAST_POLL_INTERVAL : SLOW_POLL_INTERVAL;
+
+      loadWorks();
+      timer = setTimeout(poll, nextInterval);
+    };
+
+    // 5 秒后开始首次轮询
+    timer = setTimeout(poll, FAST_POLL_INTERVAL);
+
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
   }, [loadWorks]);
 
   const headerText =

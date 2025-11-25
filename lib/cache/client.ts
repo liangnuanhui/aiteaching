@@ -1,5 +1,5 @@
 import { getCloudflareEnv } from '@/lib/db/client';
-import { analytics } from '@/lib/analytics';
+import { getAnalytics } from '@/lib/analytics';
 
 /**
  * Get KV namespace instance
@@ -126,7 +126,7 @@ export async function withCache<T>(
   const cached = await cache.get(key);
   if (cached) {
     try {
-      await analytics.trackCacheAccess(key, true);
+      await getAnalytics().trackCacheAccess(key, true);
       return JSON.parse(cached) as T;
     } catch {
       // If parsing fails, delete cache and re-fetch
@@ -140,7 +140,7 @@ export async function withCache<T>(
     expirationTtl: ttl,
   });
 
-  await analytics.trackCacheAccess(key, false);
+  await getAnalytics().trackCacheAccess(key, false);
 
   return result;
 }

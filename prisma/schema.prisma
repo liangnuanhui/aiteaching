@@ -195,6 +195,7 @@ model Upload {
   workDescription    String?    @map("work_description")
   workKeywords       String?    @map("work_keywords")
   workEmotions       String?    @map("work_emotions")
+  visualElements     String?    @map("visual_elements")
   contentExtractedAt Int?       @map("content_extracted_at")
 
   // Multi-model metadata
@@ -229,6 +230,7 @@ model Upload {
   @@index([studentId])
   @@index([fileHash])
   @@index([triageStatus])
+  @@index([uploadedAt])
   @@map("uploads")
 }
 

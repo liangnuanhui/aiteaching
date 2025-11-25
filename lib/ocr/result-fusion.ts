@@ -24,6 +24,7 @@ export function fuseResults(
   const textContent = fuseTextContent(results, options);
   const keywords = fuseKeywords(results, options);
   const emotions = fuseEmotions(results, options);
+  const visualElements = fuseVisualElements(results, options);
   const confidence = fuseConfidence(results, options);
   const modelConsensus = calculateConsensus(results);
   const educationalInsights = fuseEducationalInsights(results);
@@ -42,6 +43,7 @@ export function fuseResults(
     textContent,
     keywords,
     emotions,
+    visualElements,
     confidence,
     modelConsensus,
     educationalInsights,
@@ -171,6 +173,33 @@ export function fuseEmotions(
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([emotion]) => emotion);
+}
+
+/**
+ * Fuse visual_elements from multiple models
+ * Uses same weighted merging strategy as keywords
+ */
+export function fuseVisualElements(
+  results: ModelAnalysisResult[],
+  options: ResultFusionOptions
+): string[] {
+  const elementScores: Map<string, number> = new Map();
+
+  for (const result of results) {
+    const weight = getWeight(result.modelName, options);
+    for (const element of result.visualElements || []) {
+      if (!element) {
+        continue;
+      }
+      elementScores.set(element, (elementScores.get(element) || 0) + weight);
+    }
+  }
+
+  // Return top 15 visual elements (more than keywords since artworks can be complex)
+  return Array.from(elementScores.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15)
+    .map(([element]) => element);
 }
 
 export function fuseConfidence(

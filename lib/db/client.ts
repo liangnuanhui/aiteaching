@@ -2,6 +2,10 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { CloudflareEnv } from '@/types/cloudflare';
 
+// CRITICAL: This file uses Prisma which requires Node.js Runtime
+// The exported prisma instance is created at module load time
+export const runtime = 'nodejs';
+
 /**
  * Global Prisma client instance cache
  * In Edge Runtime, each isolate has its own global scope

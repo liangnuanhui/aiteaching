@@ -352,6 +352,52 @@ nano .env.local
 }
 ```
 
+### 5. 开发环境 HMR 导致页面自动刷新
+
+**问题：** 手机扫码上传页面在文件上传后自动刷新
+
+**原因：**
+
+Next.js 开发服务器会监听项目内所有文件的变化。当上传文件时，以下操作会触发 HMR（Hot Module Replacement）：
+
+1. 上传的图片保存到 `uploads/` 目录
+2. SQLite 数据库文件 (`prisma/dev.db`) 被修改
+
+任何一个变化都会导致页面通过 WebSocket 热重载，在手机端表现为"自动刷新"。
+
+**解决方案：**
+
+`next.config.ts` 中配置 webpack 忽略这些文件变化：
+
+```typescript
+webpack: (config, { isServer, dev }) => {
+  // ...
+  if (dev) {
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: [
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/prisma/*.db',
+        '**/prisma/*.db-journal',
+        '**/uploads/**',
+      ],
+    };
+  }
+  return config;
+},
+```
+
+**自定义上传目录：**
+
+可通过环境变量 `LOCAL_UPLOAD_DIR` 自定义，默认为 `./uploads`（见 `lib/storage/paths.ts`）
+
+**生产环境注意事项：**
+
+- Cloudflare Pages 没有本地文件系统，必须使用 R2 存储
+- 此问题仅影响本地开发环境
+- 存储抽象层 (`lib/storage/index.ts`) 自动选择正确的存储后端
+
 ---
 
 ## 📐 代码规范
@@ -536,13 +582,13 @@ pnpm test
 - **CLAUDE.md** - 为Claude Code等AI助手优化的快速参考
   - 命令速查表
   - 代码模板
-  - 架构概览
+  - 架构概览（包括多模型融合系统）
   - 引用本文档获取详细规则
 
 #### 贡献者指南
 
 - **AGENTS.md** - 项目进度追踪与贡献指南
-  - 当前开发进度（~75%）
+  - 当前开发进度（~98%）
   - 已完成/进行中/待开发模块
   - 快速上手命令
   - 目标用户与设计原则
@@ -552,14 +598,16 @@ pnpm test
 - **AIteaching升级迁移方案.md** - 完整迁移计划与进度跟踪
   - 旧项目功能对比
   - 详细实施计划
-  - 阶段完成度（P1 ✅, P2 🔄, P3-P4 📋）
+  - 阶段完成度（P1 ✅, P2 ✅, P3-P4 📋）
   - 技术决策记录
+  - 多模型融合架构说明
 
 #### 专项技术文档
 
 - **OCR_SYSTEM_README.md** - OCR系统完整文档
   - 系统架构
   - 三态分流逻辑
+  - 多模型融合实现
   - API接口
   - 测试流程
 - **WORKER_DEPLOYMENT.md** - Worker部署指南
@@ -596,9 +644,11 @@ pnpm test
 3. 添加实际案例
 4. 提交更新说明
 
-**最后更新：** 2025-11-20
+**最后更新：** 2025-11-23
 
 **贡献者：**
 
 - Claude Code Assistant - 初始版本（2025-11-20），基于实际踩坑经验
 - 文档体系整合（2025-11-20）
+- HMR 刷新问题解决方案（2025-11-22）
+- 多模型融合系统文档更新（2025-11-23）

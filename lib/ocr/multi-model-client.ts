@@ -33,6 +33,7 @@ export interface ModelAnalysisResult {
   textContent: string;
   keywords: string[];
   emotions: string[];
+  visualElements: string[];
   confidence: number;
   educationalObservations?: string;
   teachingSuggestions?: string;
@@ -49,6 +50,7 @@ export interface FusedResult {
   textContent: string;
   keywords: string[];
   emotions: string[];
+  visualElements: string[];
   confidence: number;
   modelConsensus: number;
   educationalInsights?: {
@@ -65,16 +67,28 @@ const DEFAULT_STANDARD_PROMPT = `请仔细分析这张学生作品照片,以JSON
 {
   "student_name": "手写姓名,无则返回空字符串",
   "work_type": "【绘画、手工制作、文字书写、综合创作】四选一",
-  "description": "20-30字描述主题和特征",
+  "description": "50-80字详细描述主题、内容和特征",
   "text_content": "按顺序识别所有文字内容",
   "keywords": ["主题词", "视觉元素", "关键概念"],
-  "emotions": ["快乐、温馨、思念、感恩、自豪、期待、创意、努力等"]
+  "emotions": ["快乐、温馨、思念、感恩、自豪、期待、创意、努力等"],
+  "visual_elements": ["画面中的具体物体名称"]
 }
+
+**分析指导:**
+1. 绘画作品:
+   - description: 详细描述画了什么(如: 兔子、人物、树木、房子、太阳等)，画面的构图、色彩和风格
+   - visual_elements: 列出画面中所有识别到的物体(如: ["兔子", "月亮", "草地", "花朵"])
+2. 手工作品:
+   - description: 描述材料、工艺、立体感
+   - visual_elements: 列出作品组成部分(如: ["纸花", "彩带", "纽扣", "毛线"])
+3. 文字书写:
+   - visual_elements: 保持为空数组 []
 
 **重要规则:**
 - 只返回JSON对象,不要任何解释性文字
 - student_name字段:如果照片中有手写姓名则识别,没有则返回空字符串""
 - text_content字段:提取所有可见的文字内容(包括但不限于姓名)
+- visual_elements字段:绘画/手工作品必须详细列出物体,文字作品返回空数组[]
 - 所有字段都必须填写,不能省略`;
 
 const QWEN235B_EDUCATION_PROMPT = `你是一位经验丰富的教育专家，专门分析小学生的作品。请仔细分析这张学生作品照片，以JSON格式返回以下结构化信息：
@@ -82,10 +96,11 @@ const QWEN235B_EDUCATION_PROMPT = `你是一位经验丰富的教育专家，专
 {
   "student_name": "图片上清晰可辨的学生手写姓名，如果没有则返回空字符串",
   "work_type": "从【绘画创作、手工制作、文字书写、综合创作】中选择最符合的一项",
-  "description": "用40-60字从教育角度专业描述作品的主题、内容、创意特点和视觉表现",
+  "description": "用60-90字从教育角度专业描述作品的主题、内容、创意特点和视觉表现",
   "text_content": "按阅读顺序识别图片中出现的所有文字内容，包括标题、正文、签名等",
   "keywords": ["作品核心主题词", "主要视觉元素", "表达的教育概念", "体现的能力要素"],
   "emotions": ["从【快乐、温馨、思念、感恩、自豪、期待、创意、努力、专注、惊喜、温暖、幸福】中选择最贴切的1-3个"],
+  "visual_elements": ["画面中识别到的所有具体物体、人物、动物、植物、建筑等"],
   "educational_observations": "从教育观察角度分析作品体现的学生发展水平、学习成果、能力特点（50-80字）",
   "teaching_suggestions": "基于作品分析，给教师的教学建议（30-50字）",
   "age_appropriateness": "评估作品表现是否符合小学生年龄特点（符合/超越/需要支持）",
@@ -100,11 +115,18 @@ const QWEN235B_EDUCATION_PROMPT = `你是一位经验丰富的教育专家，专
 - 体现以学生为中心的教育理念
 - 关注个体差异和个性化发展
 
+【visual_elements 识别指导】：
+- 绘画作品: 详细列出所有物体(如: 兔子、树、花、人物、房子、太阳、云朵等)
+- 手工作品: 列出材料和组成部分(如: 纸花、彩带、纽扣、毛线等)
+- 文字书写: 返回空数组 []
+- 综合创作: 结合绘画和手工的识别要求
+
 【返回要求】：
 - 只返回标准JSON格式，不要添加任何解释文字
 - 确保所有字段都有合适的内容
 - 教育观察要具体、专业、有针对性
-- 教学建议要实用、可操作、符合教育规律`; // eslint-disable-line max-len
+- 教学建议要实用、可操作、符合教育规律
+- visual_elements必须详细具体，不能模糊概括`; // eslint-disable-line max-len
 
 interface NormalizedFields {
   studentName: string;
@@ -113,6 +135,7 @@ interface NormalizedFields {
   textContent: string;
   keywords: string[];
   emotions: string[];
+  visualElements: string[];
   educationalObservations?: string;
   teachingSuggestions?: string;
   ageAppropriateness?: string;
@@ -143,7 +166,7 @@ const MODEL_CONFIGS: ModelConfig[] = [
     name: 'qwen235b',
     label: 'Qwen3-VL-235B',
     type: 'qwen235b',
-    modelId: 'Qwen/Qwen3-VL-235B-Instruct',
+    modelId: 'Qwen/Qwen3-VL-235B-A22B-Instruct',
     maxTokens: 1600,
     temperature: 0.1,
     timeout: SINGLE_MODEL_TIMEOUT_MS,
@@ -270,6 +293,7 @@ export class MultiModelClient {
     const start = Date.now();
     let rawResponse = '';
     try {
+      console.log(`[${model.label}] Starting analysis...`);
       const prompt = this.buildPrompt(model, params.contentType);
 
       switch (model.type) {
@@ -281,6 +305,7 @@ export class MultiModelClient {
             this.parseModelResponse(response),
             model.type === 'qwen235b'
           );
+          console.log(`[${model.label}] Analysis complete (${Date.now() - start}ms)`);
           return this.buildModelResult(model, normalized, rawResponse, Date.now() - start);
         }
         case 'gpt4v': {
@@ -308,6 +333,10 @@ export class MultiModelClient {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      console.error(`[${model.label}] Analysis failed:`, message);
+      if (rawResponse) {
+        console.error(`[${model.label}] Raw response:`, rawResponse.substring(0, 200));
+      }
       throw new Error(`[${model.label}] ${message}`);
     }
   }
@@ -557,9 +586,16 @@ export class MultiModelClient {
     const studentName = (data.student_name ?? data.studentName ?? '') as string;
     const workType = (data.work_type ?? data.workType ?? '其他') as string;
     const description = (data.description ?? '') as string;
-    const textContent = (data.text_content ?? data.textContent ?? '') as string;
+
+    // Handle text_content which can be either string or array
+    const rawTextContent = data.text_content ?? data.textContent ?? '';
+    const textContent = Array.isArray(rawTextContent)
+      ? rawTextContent.join(' ')
+      : (rawTextContent as string);
+
     const keywords = this.ensureStringArray(data.keywords);
     const emotions = this.ensureStringArray(data.emotions);
+    const visualElements = this.ensureStringArray(data.visual_elements ?? data.visualElements);
 
     const normalized: NormalizedFields = {
       studentName: studentName.trim(),
@@ -568,6 +604,7 @@ export class MultiModelClient {
       textContent: textContent.trim(),
       keywords,
       emotions,
+      visualElements,
     };
 
     if (includeEducation) {
@@ -621,6 +658,7 @@ export class MultiModelClient {
       textContent: payload.textContent,
       keywords: payload.keywords,
       emotions: payload.emotions,
+      visualElements: payload.visualElements,
       confidence: this.estimateConfidence(payload),
       educationalObservations: payload.educationalObservations,
       teachingSuggestions: payload.teachingSuggestions,

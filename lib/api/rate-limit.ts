@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createCacheClient } from '@/lib/cache/client';
 import { RateLimitConfig, RateLimitStatus } from '@/types/rate-limit';
-import { analytics } from '@/lib/analytics';
+import { getAnalytics } from '@/lib/analytics';
 
 /**
  * Default rate limit configuration
@@ -234,7 +234,7 @@ export async function withRateLimit<T>(
 
     response.headers.set('Retry-After', String(retryAfter));
 
-    await analytics.trackRateLimitExceeded(clientId, pathname, {
+    await getAnalytics().trackRateLimitExceeded(clientId, pathname, {
       retryAfter,
       limit: status.limit,
     });

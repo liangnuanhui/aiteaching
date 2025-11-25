@@ -5,7 +5,7 @@ import { handleSignOut } from '@/app/actions/auth';
 import { Suspense } from 'react';
 import { HealthStatusCard } from '@/components/health-status-card';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export default async function Home() {
   const session = await auth();

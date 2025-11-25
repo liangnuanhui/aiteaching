@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { DatabaseError, DatabaseQueryError } from '@/lib/errors';
-import { analytics } from '@/lib/analytics';
+import { getAnalytics } from '@/lib/analytics';
 
 /**
  * Student Repository
@@ -19,9 +19,14 @@ export class StudentRepository {
         where: { classId },
         orderBy: { createdAt: 'asc' },
       });
-      await analytics.trackDatabaseQuery('student.findByClassId', 'students', Date.now() - start, {
-        classId,
-      });
+      await getAnalytics().trackDatabaseQuery(
+        'student.findByClassId',
+        'students',
+        Date.now() - start,
+        {
+          classId,
+        }
+      );
       return students;
     } catch (error) {
       throw new DatabaseQueryError('Failed to fetch students for class', error);
@@ -41,7 +46,7 @@ export class StudentRepository {
           classId: data.classId,
         },
       });
-      await analytics.trackDatabaseQuery('student.create', 'students', Date.now() - start, {
+      await getAnalytics().trackDatabaseQuery('student.create', 'students', Date.now() - start, {
         classId: data.classId,
       });
       return student;
@@ -59,7 +64,7 @@ export class StudentRepository {
       const result = await this.prisma.student.deleteMany({
         where: { id, classId },
       });
-      await analytics.trackDatabaseQuery('student.delete', 'students', Date.now() - start, {
+      await getAnalytics().trackDatabaseQuery('student.delete', 'students', Date.now() - start, {
         id,
         classId,
       });
@@ -79,10 +84,15 @@ export class StudentRepository {
         where: { id, classId },
         data: { nickname },
       });
-      await analytics.trackDatabaseQuery('student.updateNickname', 'students', Date.now() - start, {
-        id,
-        classId,
-      });
+      await getAnalytics().trackDatabaseQuery(
+        'student.updateNickname',
+        'students',
+        Date.now() - start,
+        {
+          id,
+          classId,
+        }
+      );
       return student.count;
     } catch (error) {
       throw new DatabaseError('Failed to update student nickname', error);

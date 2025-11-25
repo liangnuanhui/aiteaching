@@ -10,6 +10,7 @@
 import { getCloudflareEnv } from '@/lib/db/client';
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import { getLocalUploadDir } from '@/lib/storage/paths';
 
 export interface StorageMetadata {
   contentType?: string;
@@ -22,6 +23,13 @@ export interface StoredFile {
   size?: number;
   contentType?: string;
   uploadedAt?: string;
+}
+
+type UploadInput = File | Blob | Buffer | Uint8Array;
+
+interface UploadFileOptions {
+  metadata?: Record<string, string>;
+  contentType?: string;
 }
 
 /**
@@ -197,7 +205,7 @@ export function createStorage(): IStorage | null {
       return new R2Storage(env.BUCKET);
     } else {
       console.log('⚠️ Using local filesystem storage (no R2 bucket detected)');
-      const uploadDir = process.env.LOCAL_UPLOAD_DIR || './uploads';
+      const uploadDir = getLocalUploadDir();
       console.log(`📁 Upload directory: ${uploadDir}`);
       return new LocalStorage(uploadDir);
     }
@@ -205,7 +213,7 @@ export function createStorage(): IStorage | null {
 
   // Explicit local mode
   if (storageType === 'local') {
-    const uploadDir = process.env.LOCAL_UPLOAD_DIR || './uploads';
+    const uploadDir = getLocalUploadDir();
     console.log(`⚠️ Using LOCAL filesystem storage: ${uploadDir}`);
     return new LocalStorage(uploadDir);
   }
@@ -233,10 +241,16 @@ export const storage = createStorage();
  * Upload file (wrapper that handles both storage types)
  * Signature matches the existing uploadFile utility
  */
+const isBlobLike = (value: unknown): value is File | Blob =>
+  typeof value === 'object' &&
+  value !== null &&
+  'arrayBuffer' in (value as File | Blob) &&
+  typeof (value as File | Blob).arrayBuffer === 'function';
+
 export async function uploadFile(
   key: string,
-  file: File | Blob,
-  metadata?: Record<string, string>
+  file: UploadInput,
+  options: UploadFileOptions = {}
 ): Promise<StoredFile | null> {
   const store = storage;
   if (!store) {
@@ -244,11 +258,28 @@ export async function uploadFile(
     return null;
   }
 
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
+  const { metadata, contentType: providedContentType } = options;
+  let buffer: Buffer;
+  let resolvedContentType = providedContentType;
+
+  if (Buffer.isBuffer(file)) {
+    buffer = file;
+  } else if (file instanceof Uint8Array) {
+    buffer = Buffer.from(file);
+  } else if (isBlobLike(file)) {
+    const arrayBuffer = await file.arrayBuffer();
+    buffer = Buffer.from(arrayBuffer);
+    resolvedContentType = resolvedContentType || file.type || 'application/octet-stream';
+  } else {
+    throw new Error('Unsupported upload input type');
+  }
+
+  if (!resolvedContentType) {
+    resolvedContentType = 'application/octet-stream';
+  }
 
   return await store.put(key, buffer, {
-    contentType: file.type || 'application/octet-stream',
+    contentType: resolvedContentType,
     customMetadata: metadata,
   });
 }

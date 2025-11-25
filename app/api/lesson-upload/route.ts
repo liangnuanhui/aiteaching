@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { uploadFile } from '@/lib/storage';
 import { FileSizeExceededError, MissingRequiredFieldError } from '@/lib/errors';
 import { verifyLessonUploadToken } from '@/lib/lesson-upload-token';
+import crypto from 'crypto';
 
 export const runtime = 'nodejs';
 
@@ -50,9 +51,16 @@ export async function POST(request: NextRequest) {
   const filename = `${timestamp}-${safeName}`;
   const key = `lesson_${lessonId}/${filename}`;
 
-  const stored = await uploadFile(key, file, {
-    originalName: safeName,
-    uploadedAt: new Date().toISOString(),
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+
+  const stored = await uploadFile(key, buffer, {
+    metadata: {
+      originalName: safeName,
+      uploadedAt: new Date().toISOString(),
+    },
+    contentType: file.type || 'application/octet-stream',
   });
 
   if (!stored) {
@@ -65,5 +73,6 @@ export async function POST(request: NextRequest) {
     url: stored.url,
     contentType: stored.contentType || file.type || 'application/octet-stream',
     name: safeName,
+    hash,
   });
 }

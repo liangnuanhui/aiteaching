@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import { getLocalUploadDir } from '@/lib/storage/paths';
 
 // GET /api/storage/local/:key*
 export async function GET(_request: NextRequest, context: { params: Promise<{ key: string[] }> }) {
   try {
     const { key: keyParts } = await context.params;
     const key = keyParts.join('/');
-    const uploadDir = process.env.LOCAL_UPLOAD_DIR || './uploads';
+    const uploadDir = getLocalUploadDir();
     const filePath = join(uploadDir, key);
 
     // Security: Prevent directory traversal

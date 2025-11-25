@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { DatabaseError, DatabaseQueryError } from '@/lib/errors';
-import { analytics } from '@/lib/analytics';
+import { getAnalytics } from '@/lib/analytics';
 
 /**
  * LessonCard Repository
@@ -19,7 +19,7 @@ export class LessonCardRepository {
         where: { classId },
         orderBy: { createdAt: 'desc' },
       });
-      await analytics.trackDatabaseQuery(
+      await getAnalytics().trackDatabaseQuery(
         'lessonCard.findByClassId',
         'lesson_cards',
         Date.now() - start,
@@ -45,9 +45,14 @@ export class LessonCardRepository {
           ...(data.mdPlan !== undefined && { mdPlan: data.mdPlan }),
         },
       });
-      await analytics.trackDatabaseQuery('lessonCard.create', 'lesson_cards', Date.now() - start, {
-        classId: data.classId,
-      });
+      await getAnalytics().trackDatabaseQuery(
+        'lessonCard.create',
+        'lesson_cards',
+        Date.now() - start,
+        {
+          classId: data.classId,
+        }
+      );
       return lesson;
     } catch (error) {
       throw new DatabaseError('Failed to create lesson card', error);

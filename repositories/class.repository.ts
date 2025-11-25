@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { DatabaseError, DatabaseQueryError } from '@/lib/errors';
-import { analytics } from '@/lib/analytics';
+import { getAnalytics } from '@/lib/analytics';
 
 /**
  * Class Repository
@@ -25,7 +25,12 @@ export class ClassRepository {
         where,
         orderBy: { createdAt: 'desc' },
       });
-      await analytics.trackDatabaseQuery('class.findAll', 'classes', Date.now() - start, where);
+      await getAnalytics().trackDatabaseQuery(
+        'class.findAll',
+        'classes',
+        Date.now() - start,
+        where
+      );
       return classes;
     } catch (error) {
       throw new DatabaseQueryError('Failed to fetch classes', error);
@@ -41,7 +46,9 @@ export class ClassRepository {
       const cls = await this.prisma.class.findUnique({
         where: { id },
       });
-      await analytics.trackDatabaseQuery('class.findById', 'classes', Date.now() - start, { id });
+      await getAnalytics().trackDatabaseQuery('class.findById', 'classes', Date.now() - start, {
+        id,
+      });
       return cls;
     } catch (error) {
       throw new DatabaseQueryError(`Failed to fetch class with id ${id}`, error);
@@ -61,7 +68,7 @@ export class ClassRepository {
           teacherId: data.teacherId,
         },
       });
-      await analytics.trackDatabaseQuery('class.create', 'classes', Date.now() - start, {
+      await getAnalytics().trackDatabaseQuery('class.create', 'classes', Date.now() - start, {
         teacherId: data.teacherId,
       });
       return cls;

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createdResponse, paginatedResponse, withRepositories } from '@/lib/api';
 import { ValidationError, ResourceNotFoundError } from '@/lib/errors';
-import { analytics, AnalyticsEventType } from '@/lib/analytics';
+import { getAnalytics, AnalyticsEventType } from '@/lib/analytics';
 import type { PaginationParams, PaginationMeta } from '@/types';
 
 export const runtime = 'nodejs';
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       hasPrev: pagination.page > 1,
     };
 
-    await analytics.trackPerformance('post.list', Date.now() - timerStart, {
+    await getAnalytics().trackPerformance('post.list', Date.now() - timerStart, {
       userId,
       published,
       ...meta,
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
       published: published ?? false,
     });
 
-    await analytics.trackBusinessEvent(AnalyticsEventType.POST_CREATED, {
+    await getAnalytics().trackBusinessEvent(AnalyticsEventType.POST_CREATED, {
       postId: post.id,
       userId,
       published: post.published,

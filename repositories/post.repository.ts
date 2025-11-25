@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { DatabaseError, DatabaseQueryError } from '@/lib/errors';
-import { analytics } from '@/lib/analytics';
+import { getAnalytics } from '@/lib/analytics';
 
 /**
  * Post Repository
@@ -43,7 +43,7 @@ export class PostRepository {
         skip: options?.skip,
         take: options?.take,
       });
-      await analytics.trackDatabaseQuery('post.findAll', 'posts', Date.now() - start, where);
+      await getAnalytics().trackDatabaseQuery('post.findAll', 'posts', Date.now() - start, where);
       return posts;
     } catch (error) {
       throw new DatabaseQueryError('Failed to fetch posts', error);
@@ -70,7 +70,7 @@ export class PostRepository {
 
       const start = Date.now();
       const total = await this.prisma.post.count({ where });
-      await analytics.trackDatabaseQuery('post.count', 'posts', Date.now() - start, where);
+      await getAnalytics().trackDatabaseQuery('post.count', 'posts', Date.now() - start, where);
       return total;
     } catch (error) {
       throw new DatabaseQueryError('Failed to count posts', error);
@@ -95,7 +95,7 @@ export class PostRepository {
           },
         },
       });
-      await analytics.trackDatabaseQuery('post.findById', 'posts', Date.now() - start, { id });
+      await getAnalytics().trackDatabaseQuery('post.findById', 'posts', Date.now() - start, { id });
       return post;
     } catch (error) {
       throw new DatabaseQueryError(`Failed to fetch post with id ${id}`, error);
@@ -119,7 +119,12 @@ export class PostRepository {
         orderBy: { createdAt: 'desc' },
         take: options?.limit,
       });
-      await analytics.trackDatabaseQuery('post.findByUserId', 'posts', Date.now() - start, where);
+      await getAnalytics().trackDatabaseQuery(
+        'post.findByUserId',
+        'posts',
+        Date.now() - start,
+        where
+      );
       return posts;
     } catch (error) {
       throw new DatabaseQueryError(`Failed to fetch posts for user ${userId}`, error);
@@ -154,7 +159,7 @@ export class PostRepository {
           },
         },
       });
-      await analytics.trackDatabaseQuery('post.create', 'posts', Date.now() - start, {
+      await getAnalytics().trackDatabaseQuery('post.create', 'posts', Date.now() - start, {
         userId: data.userId,
       });
       return post;
@@ -189,7 +194,7 @@ export class PostRepository {
           },
         },
       });
-      await analytics.trackDatabaseQuery('post.update', 'posts', Date.now() - start, { id });
+      await getAnalytics().trackDatabaseQuery('post.update', 'posts', Date.now() - start, { id });
       return post;
     } catch (error) {
       throw new DatabaseError(`Failed to update post with id ${id}`, error);
@@ -205,7 +210,7 @@ export class PostRepository {
       const deleted = await this.prisma.post.delete({
         where: { id },
       });
-      await analytics.trackDatabaseQuery('post.delete', 'posts', Date.now() - start, { id });
+      await getAnalytics().trackDatabaseQuery('post.delete', 'posts', Date.now() - start, { id });
       return deleted;
     } catch (error) {
       throw new DatabaseError(`Failed to delete post with id ${id}`, error);
@@ -221,7 +226,7 @@ export class PostRepository {
       const count = await this.prisma.post.count({
         where: { id },
       });
-      await analytics.trackDatabaseQuery('post.exists', 'posts', Date.now() - start, { id });
+      await getAnalytics().trackDatabaseQuery('post.exists', 'posts', Date.now() - start, { id });
       return count > 0;
     } catch (error) {
       throw new DatabaseQueryError(`Failed to check post existence: ${id}`, error);
@@ -238,7 +243,7 @@ export class PostRepository {
         where: { id },
         data: { published: true },
       });
-      await analytics.trackDatabaseQuery('post.publish', 'posts', Date.now() - start, { id });
+      await getAnalytics().trackDatabaseQuery('post.publish', 'posts', Date.now() - start, { id });
       return post;
     } catch (error) {
       throw new DatabaseError(`Failed to publish post with id ${id}`, error);
@@ -255,7 +260,9 @@ export class PostRepository {
         where: { id },
         data: { published: false },
       });
-      await analytics.trackDatabaseQuery('post.unpublish', 'posts', Date.now() - start, { id });
+      await getAnalytics().trackDatabaseQuery('post.unpublish', 'posts', Date.now() - start, {
+        id,
+      });
       return post;
     } catch (error) {
       throw new DatabaseError(`Failed to unpublish post with id ${id}`, error);

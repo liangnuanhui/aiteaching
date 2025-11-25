@@ -2,8 +2,6 @@ import { env } from '@/lib/config/env';
 import { LoggerFactory } from '@/lib/logger';
 import { getKVNamespace } from '@/lib/cache/client';
 import { getCloudflareEnv } from '@/lib/db/client';
-import { getRequestContext } from '@cloudflare/next-on-pages';
-import { CloudflareEnv } from '@/types/cloudflare';
 
 const logger = LoggerFactory.getLogger('analytics');
 
@@ -371,32 +369,36 @@ export class AnalyticsClient {
 }
 
 /**
- * Global Analytics client instance
+ * Global Analytics client instance (lazy-initialized)
+ * Use getAnalytics() to access the instance
  */
-export const analytics = new AnalyticsClient();
+let analyticsInstance: AnalyticsClient | null = null;
+
+/**
+ * Get Analytics client instance (lazy initialization)
+ * This ensures analytics is only created when actually used, avoiding
+ * Edge Runtime issues during module loading
+ */
+export function getAnalytics(): AnalyticsClient {
+  if (!analyticsInstance) {
+    analyticsInstance = new AnalyticsClient();
+  }
+  return analyticsInstance;
+}
 
 /**
  * Get Analytics Engine binding (if configured)
- * Note: For Cloudflare Pages, we need to use getRequestContext() to access bindings
+ * Simplified version: only use getCloudflareEnv() to avoid Edge Runtime issues
+ * with @cloudflare/next-on-pages require()
  */
 export function getAnalyticsEngine(): AnalyticsEngineDataset | null {
   try {
-    // For Cloudflare Pages with @cloudflare/next-on-pages
-    // Use getRequestContext() to access bindings (only available in request context)
-    const { env: cloudflareEnv } = getRequestContext();
-    // Type assertion because getRequestContext() doesn't include our custom CloudflareEnv type
-    const analytics = (cloudflareEnv as CloudflareEnv | undefined)?.ANALYTICS;
-    return (analytics as unknown as AnalyticsEngineDataset) || null;
+    // Try to get Analytics Engine binding from Cloudflare environment
+    const env = getCloudflareEnv();
+    return (env?.ANALYTICS as unknown as AnalyticsEngineDataset) || null;
   } catch (error) {
-    // If getRequestContext fails (e.g., not in request context or local dev),
-    // try fallback to process.env for Workers or return null
-    try {
-      const env = getCloudflareEnv();
-      return (env?.ANALYTICS as unknown as AnalyticsEngineDataset) || null;
-    } catch {
-      logger.debug('Analytics Engine binding not available', { error });
-      return null;
-    }
+    logger.debug('Analytics Engine binding not available', { error });
+    return null;
   }
 }
 
@@ -417,9 +419,9 @@ export function trackPerformanceDecorator(eventType?: AnalyticsEventType) {
         const duration = Date.now() - startTime;
 
         // Track performance; if eventType specified, also record business event
-        await analytics.trackPerformance(operation, duration);
+        await getAnalytics().trackPerformance(operation, duration);
         if (eventType) {
-          await analytics.trackBusinessEvent(eventType, { operation, duration });
+          await getAnalytics().trackBusinessEvent(eventType, { operation, duration });
         }
 
         return result;
@@ -427,7 +429,7 @@ export function trackPerformanceDecorator(eventType?: AnalyticsEventType) {
         const duration = Date.now() - startTime;
 
         // Track error with operation name and duration metadata
-        await analytics.trackError(
+        await getAnalytics().trackError(
           (error as Error).name || 'Error',
           (error as Error).message || 'Unknown error',
           { operation, duration }

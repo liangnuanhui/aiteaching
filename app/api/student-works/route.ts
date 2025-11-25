@@ -7,6 +7,23 @@ import { AuthenticationError, MissingRequiredFieldError, ValidationError } from 
 
 export const runtime = 'nodejs';
 
+interface IncomingWorkPayload {
+  key?: string;
+  url?: string;
+  name?: string;
+  size?: number;
+  contentType?: string;
+  hash?: string;
+}
+
+interface NormalizedWorkPayload {
+  key: string;
+  name: string;
+  size: number;
+  contentType?: string;
+  fileHash: string | null;
+}
+
 /**
  * POST /api/student-works
  * 保存学生作品记录
@@ -52,24 +69,80 @@ export async function POST(request: NextRequest) {
 
     const prisma = createPrismaClient();
 
+    const normalizedWorks: NormalizedWorkPayload[] = [];
+    const seenHashes = new Set<string>();
+    const skippedInBatch: string[] = [];
+
+    for (const item of works as IncomingWorkPayload[]) {
+      if (!item || typeof item !== 'object') continue;
+      const key = typeof item.key === 'string' ? item.key : '';
+      if (!key) continue;
+
+      const name = typeof item.name === 'string' && item.name.trim().length > 0 ? item.name : key;
+      const size = typeof item.size === 'number' && Number.isFinite(item.size) ? item.size : 0;
+      const contentType =
+        typeof item.contentType === 'string' && item.contentType.length > 0
+          ? item.contentType
+          : undefined;
+      const fileHash =
+        typeof item.hash === 'string' && item.hash.trim().length > 0 ? item.hash : null;
+
+      if (fileHash) {
+        if (seenHashes.has(fileHash)) {
+          skippedInBatch.push(name);
+          continue;
+        }
+        seenHashes.add(fileHash);
+      }
+
+      normalizedWorks.push({
+        key,
+        name,
+        size,
+        contentType,
+        fileHash,
+      });
+    }
+
+    const hashesToCheck = Array.from(seenHashes);
+    let existingHashes = new Set<string>();
+
+    if (hashesToCheck.length > 0) {
+      const existing = await prisma.upload.findMany({
+        where: {
+          lessonId,
+          fileHash: {
+            in: hashesToCheck,
+          },
+        },
+        select: {
+          fileHash: true,
+        },
+      });
+      existingHashes = new Set(existing.map(record => record.fileHash).filter(Boolean));
+    }
+
+    const skippedDuplicates = [...skippedInBatch];
+    const worksToCreate = normalizedWorks.filter(work => {
+      if (work.fileHash && existingHashes.has(work.fileHash)) {
+        skippedDuplicates.push(work.name);
+        return false;
+      }
+      if (work.fileHash) {
+        existingHashes.add(work.fileHash);
+      }
+      return true;
+    });
+
     const now = Math.floor(Date.now() / 1000);
 
-    // 将上传结果映射到 Upload 模型
     const created = await Promise.all(
-      (
-        works as {
-          key?: string;
-          url?: string;
-          name?: string;
-          size?: number;
-          contentType?: string;
-        }[]
-      ).map(work =>
+      worksToCreate.map(work =>
         prisma.upload.create({
           data: {
             lessonId,
-            filePath: work.key || '',
-            fileHash: '',
+            filePath: work.key,
+            fileHash: work.fileHash || '',
             fileSize: work.size || 0,
             originalFilename: work.name || work.key || '',
             uploadedAt: now,
@@ -83,6 +156,7 @@ export async function POST(request: NextRequest) {
       success: true,
       count: created.length,
       data: created,
+      skippedDuplicates,
     });
   } catch (error) {
     console.error('保存学生作品失败:', error);
@@ -175,7 +249,7 @@ export async function GET(request: NextRequest) {
 
     const data = works.map(work => ({
       ...work,
-      url: storage ? storage.getUrl(work.filePath) : '',
+      url: storage?.getUrl(work.filePath) || '',
     }));
 
     const stats = data.reduce(
